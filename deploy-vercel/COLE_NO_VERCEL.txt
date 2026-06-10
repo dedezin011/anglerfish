@@ -1,0 +1,18 @@
+Copie estas variáveis na tela da Vercel em Environment Variables.
+
+NEXT_PUBLIC_SITE_URL=https://anglerfish.vercel.app
+SUPABASE_URL=https://ckbyaehrmpxepmhpmhnp.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=COLE_AQUI_A_CHAVE_GRANDE_DO_SUPABASE
+ADMIN_EMAIL=admin@anglerfish.com.br
+ADMIN_PASSWORD=AnglerFish@2026
+ADMIN_SESSION_SECRET=anglerfish-admin-session-secret-2026-validacao-mercado
+
+Onde colocar:
+1. Na Vercel, clique em Import .env ou paste the .env contents.
+2. Cole o conteúdo acima.
+3. Troque COLE_AQUI_A_CHAVE_GRANDE_DO_SUPABASE pela service_role key do Supabase.
+4. Clique em Deploy.
+
+Login do painel admin:
+Email: admin@anglerfish.com.br
+Senha: AnglerFish@2026
