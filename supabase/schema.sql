@@ -10,36 +10,39 @@ create table if not exists public.leads (
 create table if not exists public.survey_responses (
   id uuid primary key default gen_random_uuid(),
   lead_id uuid not null unique references public.leads(id) on delete cascade,
-  modalidade text not null check (
-    modalidade in (
+  modalidade text[] not null check (
+    cardinality(modalidade) > 0
+    and modalidade <@ array[
       'Pesca embarcada',
       'Pesca de barranco',
       'Caiaque',
       'Pesqueiro',
       'Oceânica',
       'Outras'
-    )
+    ]::text[]
   ),
   interesse_campeonato text not null check (
     interesse_campeonato in ('Sim', 'Talvez', 'Não')
   ),
-  valor_participacao text not null check (
-    valor_participacao in (
+  valor_participacao text[] not null check (
+    cardinality(valor_participacao) > 0
+    and valor_participacao <@ array[
       'Gratuito',
       'R$10 a R$20',
       'R$20 a R$50',
       'R$50 a R$100',
       'Mais de R$100'
-    )
+    ]::text[]
   ),
-  tipo_premio text not null check (
-    tipo_premio in (
+  tipo_premio text[] not null check (
+    cardinality(tipo_premio) > 0
+    and tipo_premio <@ array[
       'PIX',
       'Produtos de pesca',
       'Criptomoedas',
       'NFTs colecionáveis',
       'Experiências de pesca'
-    )
+    ]::text[]
   ),
   interesse_ranking text not null check (
     interesse_ranking in ('Sim', 'Talvez', 'Não')

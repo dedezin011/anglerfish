@@ -24,6 +24,7 @@ const surveyQuestions = [
   {
     name: "modalidade",
     label: "Qual modalidade de pesca você pratica?",
+    multiple: true,
     options: [
       "Pesca embarcada",
       "Pesca de barranco",
@@ -36,16 +37,25 @@ const surveyQuestions = [
   {
     name: "interesse_campeonato",
     label: "Você participaria de campeonatos online?",
+    multiple: false,
     options: ["Sim", "Talvez", "Não"]
   },
   {
     name: "valor_participacao",
     label: "Quanto estaria disposto a pagar por um campeonato mensal?",
-    options: ["Gratuito", "R$10 a R$20", "R$20 a R$50", "R$50 a R$100", "Mais de R$100"]
+    multiple: true,
+    options: [
+      "Gratuito",
+      "R$10 a R$20",
+      "R$20 a R$50",
+      "R$50 a R$100",
+      "Mais de R$100"
+    ]
   },
   {
     name: "tipo_premio",
     label: "Qual tipo de premiação mais te interessa?",
+    multiple: true,
     options: [
       "PIX",
       "Produtos de pesca",
@@ -58,6 +68,7 @@ const surveyQuestions = [
     name: "interesse_ranking",
     label:
       "Você gostaria de registrar suas capturas e acompanhar rankings nacionais?",
+    multiple: false,
     options: ["Sim", "Talvez", "Não"]
   }
 ];
@@ -110,10 +121,14 @@ export function WaitlistForm() {
     initialSurveyState
   );
 
-  const showSurvey = waitlistState.ok && waitlistState.showSurvey && waitlistState.leadId;
+  const showSurvey =
+    waitlistState.ok && waitlistState.showSurvey && waitlistState.leadId;
 
   return (
-    <div id="lista-de-espera" className="rounded-lg border border-white/70 bg-white p-5 shadow-soft sm:p-6">
+    <div
+      id="lista-de-espera"
+      className="rounded-lg border border-white/70 bg-white p-5 shadow-soft sm:p-6"
+    >
       <div className="mb-5 flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-harbor text-white">
           <Anchor className="h-5 w-5" aria-hidden="true" />
@@ -178,9 +193,16 @@ export function WaitlistForm() {
 
             {surveyQuestions.map((question, questionIndex) => (
               <fieldset key={question.name} className="grid gap-3">
-                <legend className="text-sm font-bold text-midnight">
-                  {questionIndex + 1}. {question.label}
-                </legend>
+                <div>
+                  <legend className="text-sm font-bold text-midnight">
+                    {questionIndex + 1}. {question.label}
+                  </legend>
+                  {question.multiple ? (
+                    <p className="mt-1 text-xs font-semibold text-reef">
+                      Pode escolher mais de uma opção.
+                    </p>
+                  ) : null}
+                </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {question.options.map((option) => (
                     <label
@@ -188,8 +210,8 @@ export function WaitlistForm() {
                       className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-slate-200 bg-foam px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-reef hover:bg-emerald-50"
                     >
                       <input
-                        required
-                        type="radio"
+                        required={!question.multiple}
+                        type={question.multiple ? "checkbox" : "radio"}
                         name={question.name}
                         value={option}
                         className="h-4 w-4 accent-reef"

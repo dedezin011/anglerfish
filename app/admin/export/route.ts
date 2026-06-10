@@ -3,7 +3,7 @@ import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 function escapeCsv(value: unknown) {
-  const text = String(value ?? "");
+  const text = Array.isArray(value) ? value.join("; ") : String(value ?? "");
   return `"${text.replaceAll('"', '""')}"`;
 }
 

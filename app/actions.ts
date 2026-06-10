@@ -24,6 +24,14 @@ function normalize(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeMany(formData: FormData, key: string) {
+  return formData
+    .getAll(key)
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export async function joinWaitlist(
   _previousState: WaitlistState,
   formData: FormData
@@ -102,14 +110,20 @@ export async function submitSurvey(
 ): Promise<SurveyState> {
   const response: SurveyResponse = {
     lead_id: normalize(formData.get("lead_id")),
-    modalidade: normalize(formData.get("modalidade")),
+    modalidade: normalizeMany(formData, "modalidade"),
     interesse_campeonato: normalize(formData.get("interesse_campeonato")),
-    valor_participacao: normalize(formData.get("valor_participacao")),
-    tipo_premio: normalize(formData.get("tipo_premio")),
+    valor_participacao: normalizeMany(formData, "valor_participacao"),
+    tipo_premio: normalizeMany(formData, "tipo_premio"),
     interesse_ranking: normalize(formData.get("interesse_ranking"))
   };
 
-  const hasMissingField = Object.values(response).some((value) => !value);
+  const hasMissingField =
+    !response.lead_id ||
+    !response.interesse_campeonato ||
+    !response.interesse_ranking ||
+    response.modalidade.length === 0 ||
+    response.valor_participacao.length === 0 ||
+    response.tipo_premio.length === 0;
 
   if (hasMissingField) {
     return {

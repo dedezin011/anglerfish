@@ -7,10 +7,10 @@ export type Lead = {
 
 export type SurveyResponse = {
   lead_id: string;
-  modalidade: string;
+  modalidade: string[];
   interesse_campeonato: string;
-  valor_participacao: string;
-  tipo_premio: string;
+  valor_participacao: string[];
+  tipo_premio: string[];
   interesse_ranking: string;
 };
 

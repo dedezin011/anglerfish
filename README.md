@@ -95,6 +95,14 @@ Ele cria:
 
 O relacionamento é `survey_responses.lead_id -> leads.id`, com `on delete cascade`.
 
+As perguntas 1, 3 e 4 aceitam múltiplas escolhas e são salvas como arrays (`text[]`) no Supabase.
+
+Se você já criou o banco antes desta alteração, execute também:
+
+```sql
+-- supabase/migrations/20260610_multi_select_survey.sql
+```
+
 ## Como executar localmente
 
 ```bash

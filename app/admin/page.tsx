@@ -26,10 +26,10 @@ type LeadRow = {
 type SurveyRow = {
   id: string;
   lead_id: string;
-  modalidade: string;
+  modalidade: string[];
   interesse_campeonato: string;
-  valor_participacao: string;
-  tipo_premio: string;
+  valor_participacao: string[];
+  tipo_premio: string[];
   interesse_ranking: string;
   created_at: string;
 };
@@ -50,8 +50,15 @@ export const metadata = {
 
 function countBy(rows: SurveyRow[], key: keyof SurveyRow): CountItem[] {
   const counts = rows.reduce<Record<string, number>>((acc, row) => {
-    const value = String(row[key] ?? "Não informado");
-    acc[value] = (acc[value] ?? 0) + 1;
+    const rawValue = row[key];
+    const values = Array.isArray(rawValue)
+      ? rawValue
+      : [String(rawValue ?? "Não informado")];
+
+    values.forEach((value) => {
+      acc[value] = (acc[value] ?? 0) + 1;
+    });
+
     return acc;
   }, {});
 
@@ -233,7 +240,9 @@ export default async function AdminDashboardPage() {
   const valores = countBy(surveys, "valor_participacao");
   const premios = countBy(surveys, "tipo_premio");
   const criptoInterest = surveys.filter((survey) =>
-    ["Criptomoedas", "NFTs colecionáveis"].includes(survey.tipo_premio)
+    survey.tipo_premio.some((premio) =>
+      ["Criptomoedas", "NFTs colecionáveis"].includes(premio)
+    )
   ).length;
 
   return (
