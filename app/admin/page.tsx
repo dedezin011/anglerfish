@@ -7,6 +7,7 @@ import {
   Gift,
   LineChart,
   LogOut,
+  Shield,
   Trophy,
   Users,
   Wallet
@@ -25,7 +26,8 @@ type LeadRow = {
 
 type SurveyRow = {
   id: string;
-  lead_id: string;
+  lead_id: string | null;
+  is_anonymous: boolean;
   modalidade: string[];
   interesse_campeonato: string;
   valor_participacao: string[];
@@ -220,7 +222,7 @@ export default async function AdminDashboardPage() {
       supabase
         .from("survey_responses")
         .select(
-          "id, lead_id, modalidade, interesse_campeonato, valor_participacao, tipo_premio, interesse_ranking, created_at"
+          "id, lead_id, is_anonymous, modalidade, interesse_campeonato, valor_participacao, tipo_premio, interesse_ranking, created_at"
         )
         .order("created_at", { ascending: false })
     ]);
@@ -231,10 +233,12 @@ export default async function AdminDashboardPage() {
 
   const leads = (leadsData ?? []) as LeadRow[];
   const surveys = (surveyData ?? []) as SurveyRow[];
+  const identifiedSurveys = surveys.filter((survey) => !survey.is_anonymous);
+  const anonymousSurveys = surveys.filter((survey) => survey.is_anonymous);
 
   const totalLeads = leads.length;
   const totalSurveys = surveys.length;
-  const conversionRate = percent(totalSurveys, totalLeads);
+  const conversionRate = percent(identifiedSurveys.length, totalLeads);
   const modalidade = countBy(surveys, "modalidade");
   const campeonatos = countBy(surveys, "interesse_campeonato");
   const valores = countBy(surveys, "valor_participacao");
@@ -284,9 +288,10 @@ export default async function AdminDashboardPage() {
           </h1>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard label="Total de leads" value={totalLeads} icon={Users} />
           <StatCard label="Pesquisas respondidas" value={totalSurveys} icon={BarChart3} />
+          <StatCard label="Pesquisas anônimas" value={anonymousSurveys.length} icon={Shield} />
           <StatCard label="Taxa de conversão" value={conversionRate} icon={Trophy} />
           <StatCard label="Interesse em cripto" value={percent(criptoInterest, totalSurveys)} icon={Wallet} />
         </div>

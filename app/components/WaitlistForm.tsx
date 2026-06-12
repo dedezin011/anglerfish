@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Anchor, CheckCircle2, LoaderCircle, Send } from "lucide-react";
+import { Anchor, CheckCircle2, LoaderCircle, Send, Shield } from "lucide-react";
 import {
   joinWaitlist,
   submitSurvey,
@@ -111,17 +111,89 @@ function SurveyButton() {
   );
 }
 
-export function WaitlistForm() {
-  const [waitlistState, waitlistAction] = useActionState(
-    joinWaitlist,
-    initialWaitlistState
-  );
+function SurveyForm({
+  anonymous,
+  leadId
+}: {
+  anonymous: boolean;
+  leadId?: string;
+}) {
   const [surveyState, surveyAction] = useActionState(
     submitSurvey,
     initialSurveyState
   );
 
-  const showSurvey =
+  return (
+    <div className="grid gap-5">
+      <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm font-semibold leading-6 text-emerald-800">
+        {anonymous
+          ? "Pesquisa anônima ativada. Responda 5 perguntas rápidas sem informar nome ou email."
+          : "Obrigado por entrar na lista de espera! Responda 5 perguntas rápidas para nos ajudar a construir a melhor plataforma de pesca do Brasil."}
+      </div>
+
+      <form action={surveyAction} className="grid gap-5">
+        <input type="hidden" name="lead_id" value={leadId ?? ""} />
+        <input type="hidden" name="is_anonymous" value={String(anonymous)} />
+
+        {surveyQuestions.map((question, questionIndex) => (
+          <fieldset key={question.name} className="grid gap-3">
+            <div>
+              <legend className="text-sm font-bold text-midnight">
+                {questionIndex + 1}. {question.label}
+              </legend>
+              {question.multiple ? (
+                <p className="mt-1 text-xs font-semibold text-reef">
+                  Pode escolher mais de uma opção.
+                </p>
+              ) : null}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {question.options.map((option) => (
+                <label
+                  key={option}
+                  className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-slate-200 bg-foam px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-reef hover:bg-emerald-50"
+                >
+                  <input
+                    required={!question.multiple}
+                    type={question.multiple ? "checkbox" : "radio"}
+                    name={question.name}
+                    value={option}
+                    className="h-4 w-4 accent-reef"
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+
+        <SurveyButton />
+
+        {surveyState.message ? (
+          <p
+            className={`rounded-md px-4 py-3 text-sm font-semibold ${
+              surveyState.ok
+                ? "bg-emerald-50 text-emerald-800"
+                : "bg-red-50 text-red-700"
+            }`}
+            role="status"
+          >
+            {surveyState.message}
+          </p>
+        ) : null}
+      </form>
+    </div>
+  );
+}
+
+export function WaitlistForm() {
+  const [anonymousSurvey, setAnonymousSurvey] = useState(false);
+  const [waitlistState, waitlistAction] = useActionState(
+    joinWaitlist,
+    initialWaitlistState
+  );
+
+  const showIdentifiedSurvey =
     waitlistState.ok && waitlistState.showSurvey && waitlistState.leadId;
 
   return (
@@ -136,108 +208,71 @@ export function WaitlistForm() {
         <div>
           <h2 className="text-xl font-bold text-midnight">Lista de espera</h2>
           <p className="text-sm text-slate-600">
-            Entre primeiro e ajude a validar os campeonatos digitais.
+            Entre primeiro ou responda de forma anônima.
           </p>
         </div>
       </div>
 
-      {!showSurvey ? (
-        <form action={waitlistAction} className="grid gap-4">
-          <label className="grid gap-2 text-sm font-semibold text-midnight">
-            Nome
-            <input
-              name="nome"
-              required
-              autoComplete="name"
-              className="min-h-12 rounded-md border border-slate-200 bg-foam px-4 text-base font-normal text-midnight outline-none transition focus:border-reef focus:ring-4 focus:ring-reef/15"
-              placeholder="Seu nome"
-            />
-          </label>
-
-          <label className="grid gap-2 text-sm font-semibold text-midnight">
-            E-mail
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="min-h-12 rounded-md border border-slate-200 bg-foam px-4 text-base font-normal text-midnight outline-none transition focus:border-reef focus:ring-4 focus:ring-reef/15"
-              placeholder="voce@email.com"
-            />
-          </label>
-
-          <WaitlistButton />
-
-          {waitlistState.message ? (
-            <p
-              className={`rounded-md px-4 py-3 text-sm font-semibold ${
-                waitlistState.ok
-                  ? "bg-emerald-50 text-emerald-800"
-                  : "bg-red-50 text-red-700"
-              }`}
-              role="status"
-            >
-              {waitlistState.message}
-            </p>
-          ) : null}
-        </form>
+      {anonymousSurvey ? (
+        <SurveyForm anonymous />
+      ) : showIdentifiedSurvey ? (
+        <SurveyForm anonymous={false} leadId={waitlistState.leadId} />
       ) : (
-        <div className="grid gap-5">
-          <div className="rounded-md bg-emerald-50 px-4 py-3 text-sm font-semibold leading-6 text-emerald-800">
-            Obrigado por entrar na lista de espera! Responda 5 perguntas rápidas
-            para nos ajudar a construir a melhor plataforma de pesca do Brasil.
-          </div>
+        <div className="grid gap-4">
+          <form action={waitlistAction} className="grid gap-4">
+            <label className="grid gap-2 text-sm font-semibold text-midnight">
+              Nome
+              <input
+                name="nome"
+                required
+                autoComplete="name"
+                className="min-h-12 rounded-md border border-slate-200 bg-foam px-4 text-base font-normal text-midnight outline-none transition focus:border-reef focus:ring-4 focus:ring-reef/15"
+                placeholder="Seu nome"
+              />
+            </label>
 
-          <form action={surveyAction} className="grid gap-5">
-            <input type="hidden" name="lead_id" value={waitlistState.leadId} />
+            <label className="grid gap-2 text-sm font-semibold text-midnight">
+              E-mail
+              <input
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                className="min-h-12 rounded-md border border-slate-200 bg-foam px-4 text-base font-normal text-midnight outline-none transition focus:border-reef focus:ring-4 focus:ring-reef/15"
+                placeholder="voce@email.com"
+              />
+            </label>
 
-            {surveyQuestions.map((question, questionIndex) => (
-              <fieldset key={question.name} className="grid gap-3">
-                <div>
-                  <legend className="text-sm font-bold text-midnight">
-                    {questionIndex + 1}. {question.label}
-                  </legend>
-                  {question.multiple ? (
-                    <p className="mt-1 text-xs font-semibold text-reef">
-                      Pode escolher mais de uma opção.
-                    </p>
-                  ) : null}
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {question.options.map((option) => (
-                    <label
-                      key={option}
-                      className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-slate-200 bg-foam px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-reef hover:bg-emerald-50"
-                    >
-                      <input
-                        required={!question.multiple}
-                        type={question.multiple ? "checkbox" : "radio"}
-                        name={question.name}
-                        value={option}
-                        className="h-4 w-4 accent-reef"
-                      />
-                      {option}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            ))}
+            <WaitlistButton />
 
-            <SurveyButton />
-
-            {surveyState.message ? (
+            {waitlistState.message ? (
               <p
                 className={`rounded-md px-4 py-3 text-sm font-semibold ${
-                  surveyState.ok
+                  waitlistState.ok
                     ? "bg-emerald-50 text-emerald-800"
                     : "bg-red-50 text-red-700"
                 }`}
                 role="status"
               >
-                {surveyState.message}
+                {waitlistState.message}
               </p>
             ) : null}
           </form>
+
+          <div className="grid gap-3 border-t border-slate-200 pt-4">
+            <button
+              type="button"
+              onClick={() => setAnonymousSurvey(true)}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-midnight transition hover:border-reef hover:bg-emerald-50 focus:outline-none focus:ring-4 focus:ring-reef/15"
+            >
+              <Shield className="h-4 w-4" aria-hidden="true" />
+              Responder pesquisa anonimamente
+            </button>
+            <p className="text-xs leading-5 text-slate-500">
+              A resposta anônima não entra na lista de espera, mas ajuda a
+              validar campeonatos, recompensas e preços.
+            </p>
+          </div>
         </div>
       )}
     </div>

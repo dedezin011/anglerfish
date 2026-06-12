@@ -9,7 +9,8 @@ create table if not exists public.leads (
 
 create table if not exists public.survey_responses (
   id uuid primary key default gen_random_uuid(),
-  lead_id uuid not null unique references public.leads(id) on delete cascade,
+  lead_id uuid unique references public.leads(id) on delete cascade,
+  is_anonymous boolean not null default false,
   modalidade text[] not null check (
     cardinality(modalidade) > 0
     and modalidade <@ array[

@@ -97,10 +97,13 @@ O relacionamento é `survey_responses.lead_id -> leads.id`, com `on delete casca
 
 As perguntas 1, 3 e 4 aceitam múltiplas escolhas e são salvas como arrays (`text[]`) no Supabase.
 
+A pesquisa também pode ser respondida anonimamente. Nesse caso, a resposta fica em `survey_responses` com `is_anonymous = true` e sem `lead_id`.
+
 Se você já criou o banco antes desta alteração, execute também:
 
 ```sql
 -- supabase/migrations/20260610_multi_select_survey.sql
+-- supabase/migrations/20260612_anonymous_survey.sql
 ```
 
 ## Como executar localmente

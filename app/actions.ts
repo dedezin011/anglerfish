@@ -108,8 +108,11 @@ export async function submitSurvey(
   _previousState: SurveyState,
   formData: FormData
 ): Promise<SurveyState> {
+  const isAnonymous = normalize(formData.get("is_anonymous")) === "true";
+  const leadId = normalize(formData.get("lead_id"));
   const response: SurveyResponse = {
-    lead_id: normalize(formData.get("lead_id")),
+    lead_id: isAnonymous ? null : leadId,
+    is_anonymous: isAnonymous,
     modalidade: normalizeMany(formData, "modalidade"),
     interesse_campeonato: normalize(formData.get("interesse_campeonato")),
     valor_participacao: normalizeMany(formData, "valor_participacao"),
@@ -118,7 +121,7 @@ export async function submitSurvey(
   };
 
   const hasMissingField =
-    !response.lead_id ||
+    (!response.is_anonymous && !response.lead_id) ||
     !response.interesse_campeonato ||
     !response.interesse_ranking ||
     response.modalidade.length === 0 ||
@@ -134,9 +137,11 @@ export async function submitSurvey(
 
   try {
     const supabase = getSupabaseAdmin();
-    const { error } = await supabase
-      .from("survey_responses")
-      .upsert(response, { onConflict: "lead_id" });
+    const { error } = response.is_anonymous
+      ? await supabase.from("survey_responses").insert(response)
+      : await supabase
+          .from("survey_responses")
+          .upsert(response, { onConflict: "lead_id" });
 
     if (error) {
       throw error;

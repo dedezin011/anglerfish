@@ -6,7 +6,8 @@ export type Lead = {
 };
 
 export type SurveyResponse = {
-  lead_id: string;
+  lead_id: string | null;
+  is_anonymous: boolean;
   modalidade: string[];
   interesse_campeonato: string;
   valor_participacao: string[];
