@@ -13,6 +13,7 @@ import {
   Wallet
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Image from "next/image";
 import { logoutAdmin } from "@/app/admin/actions";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -254,10 +255,14 @@ export default async function AdminDashboardPage() {
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-5 sm:px-8 md:flex-row md:items-center md:justify-between">
           <Link href="/" className="flex items-center gap-3 font-bold">
-            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-reef text-white">
-              <Fish className="h-5 w-5" aria-hidden="true" />
-            </span>
-            AnglerFish Admin
+            <Image
+              src="/anglerfish-logo.png"
+              alt="AnglerFish"
+              width={170}
+              height={42}
+              className="h-10 w-auto"
+            />
+            <span className="hidden text-sm text-slate-500 sm:inline">Admin</span>
           </Link>
           <div className="flex flex-wrap gap-3">
             <a

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Fish } from "lucide-react";
+import Image from "next/image";
 
 export const metadata = {
   title: "Política de Privacidade | AnglerFish",
@@ -11,11 +11,14 @@ export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-foam text-midnight">
       <section className="mx-auto max-w-3xl px-5 py-12 sm:px-8">
-        <Link href="/" className="inline-flex items-center gap-3 font-bold">
-          <span className="flex h-10 w-10 items-center justify-center rounded-md bg-reef text-white">
-            <Fish className="h-5 w-5" aria-hidden="true" />
-          </span>
-          AnglerFish
+        <Link href="/" className="inline-flex items-center">
+          <Image
+            src="/anglerfish-logo.png"
+            alt="AnglerFish"
+            width={190}
+            height={48}
+            className="h-11 w-auto"
+          />
         </Link>
 
         <div className="mt-10 rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">

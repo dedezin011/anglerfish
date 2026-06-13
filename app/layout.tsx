@@ -24,10 +24,10 @@ export const metadata: Metadata = {
     siteName: "AnglerFish",
     images: [
       {
-        url: "https://images.unsplash.com/photo-1515960433712-95d3ff8a37ee?auto=format&fit=crop&w=1200&q=82",
+        url: "/anglerfish-logo.png",
         width: 1200,
-        height: 630,
-        alt: "Pescador esportivo em um barco durante uma pescaria"
+        height: 300,
+        alt: "Logo AnglerFish"
       }
     ],
     locale: "pt_BR",
@@ -45,6 +45,10 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true
+  },
+  icons: {
+    icon: "/anglerfish-mark.png",
+    apple: "/anglerfish-mark.png"
   }
 };
 

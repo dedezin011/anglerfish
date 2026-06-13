@@ -7,7 +7,6 @@ import {
   ChevronRight,
   CircleDollarSign,
   ClipboardList,
-  Fish,
   Gift,
   Globe2,
   History,
@@ -22,6 +21,7 @@ import {
   Trophy,
   UserRound
 } from "lucide-react";
+import Image from "next/image";
 import { WaitlistForm } from "@/app/components/WaitlistForm";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -145,11 +145,15 @@ export default function Home() {
           className="mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8"
           aria-label="Navegação principal"
         >
-          <a href="#" className="flex items-center gap-3 text-white">
-            <span className="flex h-10 w-10 items-center justify-center rounded-md bg-reef">
-              <Fish className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <span className="text-lg font-bold">AnglerFish</span>
+          <a href="#" className="flex items-center">
+            <Image
+              src="/anglerfish-logo-light.png"
+              alt="AnglerFish"
+              width={190}
+              height={48}
+              priority
+              className="h-11 w-auto"
+            />
           </a>
           <div className="hidden items-center gap-6 text-sm font-semibold text-white/85 md:flex">
             <a className="transition hover:text-white" href="#como-funciona">
@@ -419,11 +423,14 @@ export default function Home() {
       <footer className="bg-midnight py-10 text-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 sm:px-8 md:flex-row md:items-center md:justify-between">
           <div>
-            <a href="#" className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-reef">
-                <Fish className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <span className="text-lg font-bold">AnglerFish</span>
+            <a href="#" className="flex items-center">
+              <Image
+                src="/anglerfish-logo-light.png"
+                alt="AnglerFish"
+                width={190}
+                height={48}
+                className="h-11 w-auto"
+              />
             </a>
             <p className="mt-3 text-sm text-white/70">
               Campeonatos digitais para a nova comunidade da pesca esportiva.
