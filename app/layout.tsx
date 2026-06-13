@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     follow: true
   },
   icons: {
-    icon: "/anglerfish-mark.png",
+    icon: "/favicon.png",
     apple: "/anglerfish-mark.png"
   }
 };
