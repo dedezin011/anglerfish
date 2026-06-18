@@ -13,6 +13,7 @@ export type SurveyResponse = {
   valor_participacao: string[];
   tipo_premio: string[];
   interesse_ranking: string;
+  sugestao_plataforma?: string | null;
 };
 
 export function getSupabaseAdmin() {

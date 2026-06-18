@@ -48,6 +48,9 @@ create table if not exists public.survey_responses (
   interesse_ranking text not null check (
     interesse_ranking in ('Sim', 'Talvez', 'Não')
   ),
+  sugestao_plataforma text check (
+    sugestao_plataforma is null or char_length(sugestao_plataforma) <= 500
+  ),
   created_at timestamptz not null default now()
 );
 

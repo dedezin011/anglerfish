@@ -15,7 +15,7 @@ Landing page e ferramenta de validação de mercado para o AnglerFish, um ecossi
 
 - Landing page responsiva e otimizada para SEO
 - Captura de leads com nome e email
-- Pesquisa pós-cadastro com 5 perguntas de validação
+- Pesquisa pós-cadastro com 5 perguntas de validação e campo opcional de ideias
 - Persistência no Supabase com relacionamento entre leads e respostas
 - Dashboard administrativo protegido por login
 - Métricas de validação de mercado
@@ -91,6 +91,7 @@ Ele cria:
   - `valor_participacao`
   - `tipo_premio`
   - `interesse_ranking`
+  - `sugestao_plataforma`
   - `created_at`
 
 O relacionamento é `survey_responses.lead_id -> leads.id`, com `on delete cascade`.
@@ -99,11 +100,14 @@ As perguntas 1, 3 e 4 aceitam múltiplas escolhas e são salvas como arrays (`te
 
 A pesquisa também pode ser respondida anonimamente. Nesse caso, a resposta fica em `survey_responses` com `is_anonymous = true` e sem `lead_id`.
 
+O campo `sugestao_plataforma` é opcional e guarda ideias livres enviadas pelos pescadores, com limite de 500 caracteres.
+
 Se você já criou o banco antes desta alteração, execute também:
 
 ```sql
 -- supabase/migrations/20260610_multi_select_survey.sql
 -- supabase/migrations/20260612_anonymous_survey.sql
+-- supabase/migrations/20260618_survey_suggestions.sql
 ```
 
 ## Como executar localmente
@@ -166,6 +170,7 @@ O dashboard administrativo mostra:
 - Interesse em cripto
 - Faixa de preço mais escolhida
 - Tipo de prêmio mais desejado
+- Ideias recebidas da comunidade
 
 ## Exportação CSV
 
@@ -175,7 +180,7 @@ Depois de logado no admin, use o botão `Exportar CSV` ou acesse:
 /admin/export
 ```
 
-O CSV inclui dados do lead e da pesquisa vinculada.
+O CSV inclui dados do lead, respostas da pesquisa e sugestões opcionais.
 
 ## Performance e SEO
 

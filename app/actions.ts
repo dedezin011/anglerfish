@@ -110,6 +110,7 @@ export async function submitSurvey(
 ): Promise<SurveyState> {
   const isAnonymous = normalize(formData.get("is_anonymous")) === "true";
   const leadId = normalize(formData.get("lead_id"));
+  const sugestaoPlataforma = normalize(formData.get("sugestao_plataforma"));
   const response: SurveyResponse = {
     lead_id: isAnonymous ? null : leadId,
     is_anonymous: isAnonymous,
@@ -117,7 +118,8 @@ export async function submitSurvey(
     interesse_campeonato: normalize(formData.get("interesse_campeonato")),
     valor_participacao: normalizeMany(formData, "valor_participacao"),
     tipo_premio: normalizeMany(formData, "tipo_premio"),
-    interesse_ranking: normalize(formData.get("interesse_ranking"))
+    interesse_ranking: normalize(formData.get("interesse_ranking")),
+    sugestao_plataforma: sugestaoPlataforma || null
   };
 
   const hasMissingField =
@@ -132,6 +134,13 @@ export async function submitSurvey(
     return {
       ok: false,
       message: "Responda as 5 perguntas para concluir a pesquisa."
+    };
+  }
+
+  if (sugestaoPlataforma.length > 500) {
+    return {
+      ok: false,
+      message: "Sua ideia deve ter no máximo 500 caracteres."
     };
   }
 

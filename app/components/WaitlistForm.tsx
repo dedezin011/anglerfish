@@ -167,6 +167,24 @@ function SurveyForm({
           </fieldset>
         ))}
 
+        <label className="grid gap-2 text-sm font-semibold text-midnight">
+          O que você gostaria de ver na AnglerFish?
+          <span className="text-xs font-semibold text-slate-500">
+            Opcional
+          </span>
+          <textarea
+            name="sugestao_plataforma"
+            maxLength={500}
+            rows={4}
+            className="min-h-28 resize-y rounded-md border border-slate-200 bg-foam px-4 py-3 text-base font-normal text-midnight outline-none transition placeholder:text-slate-400 focus:border-reef focus:ring-4 focus:ring-reef/15"
+            placeholder="Ex: campeonatos por espécie, ranking por cidade, premiação em produtos, integração com pesqueiros..."
+          />
+          <span className="text-xs font-normal leading-5 text-slate-500">
+            Se tiver uma ideia, manda sem filtro. Isso ajuda a priorizar o que
+            vai entrar primeiro na plataforma.
+          </span>
+        </label>
+
         <SurveyButton />
 
         {surveyState.message ? (

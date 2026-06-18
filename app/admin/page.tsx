@@ -5,6 +5,7 @@ import {
   Download,
   Fish,
   Gift,
+  Lightbulb,
   LineChart,
   LogOut,
   Shield,
@@ -34,6 +35,14 @@ type SurveyRow = {
   valor_participacao: string[];
   tipo_premio: string[];
   interesse_ranking: string;
+  sugestao_plataforma: string | null;
+  created_at: string;
+};
+
+type SuggestionItem = {
+  id: string;
+  text: string;
+  source: string;
   created_at: string;
 };
 
@@ -207,6 +216,42 @@ function DailyGrowthChart({
   );
 }
 
+function SuggestionList({ items }: { items: SuggestionItem[] }) {
+  const formatter = new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+
+  return (
+    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-midnight">Ideias da comunidade</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Sugestões opcionais enviadas na pesquisa
+          </p>
+        </div>
+        <Lightbulb className="h-5 w-5 text-reef" aria-hidden="true" />
+      </div>
+
+      <div className="mt-5 grid gap-3">
+        {items.length ? (
+          items.map((item) => (
+            <div key={item.id} className="rounded-md border border-slate-200 bg-foam p-4">
+              <p className="text-sm leading-6 text-slate-700">{item.text}</p>
+              <p className="mt-3 text-xs font-semibold text-slate-500">
+                {item.source} · {formatter.format(new Date(item.created_at))}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-slate-500">Nenhuma ideia enviada ainda.</p>
+        )}
+      </div>
+    </article>
+  );
+}
+
 export default async function AdminDashboardPage() {
   const authenticated = await isAdminAuthenticated();
 
@@ -223,7 +268,7 @@ export default async function AdminDashboardPage() {
       supabase
         .from("survey_responses")
         .select(
-          "id, lead_id, is_anonymous, modalidade, interesse_campeonato, valor_participacao, tipo_premio, interesse_ranking, created_at"
+          "id, lead_id, is_anonymous, modalidade, interesse_campeonato, valor_participacao, tipo_premio, interesse_ranking, sugestao_plataforma, created_at"
         )
         .order("created_at", { ascending: false })
     ]);
@@ -234,8 +279,22 @@ export default async function AdminDashboardPage() {
 
   const leads = (leadsData ?? []) as LeadRow[];
   const surveys = (surveyData ?? []) as SurveyRow[];
+  const leadsById = new Map(leads.map((lead) => [lead.id, lead]));
   const identifiedSurveys = surveys.filter((survey) => !survey.is_anonymous);
   const anonymousSurveys = surveys.filter((survey) => survey.is_anonymous);
+  const suggestions = surveys.filter((survey) =>
+    survey.sugestao_plataforma?.trim()
+  );
+  const latestSuggestions = suggestions.slice(0, 8).map((survey) => {
+    const lead = survey.lead_id ? leadsById.get(survey.lead_id) : undefined;
+
+    return {
+      id: survey.id,
+      text: survey.sugestao_plataforma ?? "",
+      source: survey.is_anonymous ? "Resposta anônima" : lead?.nome ?? "Lead identificado",
+      created_at: survey.created_at
+    };
+  });
 
   const totalLeads = leads.length;
   const totalSurveys = surveys.length;
@@ -301,15 +360,17 @@ export default async function AdminDashboardPage() {
           <StatCard label="Interesse em cripto" value={percent(criptoInterest, totalSurveys)} icon={Wallet} />
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard label="Modalidade mais popular" value={mostPopular(modalidade)} icon={Fish} />
           <StatCard label="Interesse em campeonatos" value={mostPopular(campeonatos)} icon={Trophy} />
           <StatCard label="Faixa de preço mais escolhida" value={mostPopular(valores)} icon={Wallet} />
           <StatCard label="Prêmio mais desejado" value={mostPopular(premios)} icon={Gift} />
+          <StatCard label="Ideias recebidas" value={suggestions.length} icon={Lightbulb} />
         </div>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-2">
           <DailyGrowthChart items={buildDailyGrowth(leads)} />
+          <SuggestionList items={latestSuggestions} />
           <DistributionChart title="Modalidades praticadas" items={modalidade} />
           <DistributionChart title="Interesse em campeonatos online" items={campeonatos} />
           <DistributionChart title="Faixa de preço mensal" items={valores} />

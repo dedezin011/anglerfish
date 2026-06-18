@@ -18,6 +18,7 @@ type SurveyRow = {
   valor_participacao: string[];
   tipo_premio: string[];
   interesse_ranking: string;
+  sugestao_plataforma: string | null;
   created_at: string;
 };
 
@@ -40,7 +41,7 @@ export async function GET() {
       supabase
         .from("survey_responses")
         .select(
-          "id, lead_id, is_anonymous, modalidade, interesse_campeonato, valor_participacao, tipo_premio, interesse_ranking, created_at"
+          "id, lead_id, is_anonymous, modalidade, interesse_campeonato, valor_participacao, tipo_premio, interesse_ranking, sugestao_plataforma, created_at"
         )
         .order("created_at", { ascending: false })
     ]);
@@ -68,6 +69,7 @@ export async function GET() {
     "valor_participacao",
     "tipo_premio",
     "interesse_ranking",
+    "sugestao_plataforma",
     "survey_created_at"
   ];
 
@@ -86,6 +88,7 @@ export async function GET() {
       survey.valor_participacao,
       survey.tipo_premio,
       survey.interesse_ranking,
+      survey.sugestao_plataforma,
       survey.created_at
     ]
       .map(escapeCsv)
