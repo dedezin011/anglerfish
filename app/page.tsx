@@ -131,7 +131,8 @@ export default function Home() {
     name: "AnglerFish",
     url: siteUrl,
     description:
-      "Ecossistema digital para campeonatos de pesca esportiva com ranking, recompensas, NFTs colecionáveis e marketplace."
+      "Ecossistema digital para campeonatos de pesca esportiva com ranking, recompensas, NFTs colecionáveis e marketplace.",
+    sameAs: ["https://www.instagram.com/anglerfishbr/"]
   };
 
   return (
@@ -439,7 +440,7 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-white/75">
             <a
               className="inline-flex items-center gap-2 transition hover:text-white"
-              href="https://instagram.com"
+              href="https://www.instagram.com/anglerfishbr/"
               target="_blank"
               rel="noreferrer"
             >
