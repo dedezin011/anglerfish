@@ -6,6 +6,8 @@ Landing page e ferramenta de validação de mercado para o AnglerFish, um ecossi
 
 - Next.js 16
 - React 19
+- Expo
+- React Native
 - TypeScript
 - Tailwind CSS
 - Supabase
@@ -51,6 +53,10 @@ lib/
   supabase.ts
 supabase/
   schema.sql
+apps/
+  mobile/
+    App.tsx
+    README.md
 ```
 
 ## Variáveis de ambiente
@@ -108,7 +114,29 @@ Se você já criou o banco antes desta alteração, execute também:
 -- supabase/migrations/20260610_multi_select_survey.sql
 -- supabase/migrations/20260612_anonymous_survey.sql
 -- supabase/migrations/20260618_survey_suggestions.sql
+-- supabase/migrations/20260625_mobile_mvp.sql
 ```
+
+## App mobile
+
+O MVP mobile fica em `apps/mobile` e foi criado com Expo + React Native.
+
+Para rodar:
+
+```bash
+cd apps/mobile
+npm install
+npm run start
+```
+
+Configure `apps/mobile/.env` com:
+
+```env
+EXPO_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co
+EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel-ou-anon
+```
+
+O app mobile já tem login, tela do primeiro campeonato beta, envio de captura com foto/vídeo, ranking e perfil simples.
 
 ## Como executar localmente
 

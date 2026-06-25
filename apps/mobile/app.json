@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "AnglerFish",
+    "slug": "anglerfish",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/anglerfish-mark.png",
+    "scheme": "anglerfish",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "br.com.anglerfish.app"
+    },
+    "android": {
+      "package": "br.com.anglerfish.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#06243f",
+        "foregroundImage": "./assets/anglerfish-mark.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/anglerfish-favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "A AnglerFish precisa acessar suas fotos para validar capturas enviadas aos campeonatos.",
+          "cameraPermission": "A AnglerFish precisa acessar sua câmera para registrar capturas dos campeonatos.",
+          "microphonePermission": "A AnglerFish precisa do microfone para validar vídeos com o código do desafio."
+        }
+      ]
+    ]
+  }
+}
