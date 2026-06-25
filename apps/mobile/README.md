@@ -2,6 +2,8 @@
 
 App mobile MVP do AnglerFish, criado com Expo, React Native, TypeScript e Supabase.
 
+> Compatibilidade: este app usa Expo SDK 54 para ampliar a chance de abrir no Expo Go em aparelhos que ainda não conseguem rodar SDKs mais novos.
+
 ## O que já existe
 
 - Login e cadastro por email/senha
@@ -48,7 +50,7 @@ Na pasta do app:
 ```bash
 cd apps/mobile
 npm install
-npm run start
+npm run start -- --clear
 ```
 
 Depois escaneie o QR Code com o Expo Go ou abra em um emulador.
