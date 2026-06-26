@@ -39,6 +39,63 @@ const emptyForm: CaptureForm = {
   video: null
 };
 
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
+const MAX_VIDEO_DURATION_MS = 30 * 1000;
+
+function formatFileSize(bytes: number) {
+  const megabytes = bytes / (1024 * 1024);
+
+  if (megabytes >= 1) {
+    return `${megabytes >= 10 ? megabytes.toFixed(0) : megabytes.toFixed(1)} MB`;
+  }
+
+  return `${Math.ceil(bytes / 1024)} KB`;
+}
+
+function formatDuration(milliseconds?: number | null) {
+  if (!milliseconds) {
+    return null;
+  }
+
+  return `${Math.ceil(milliseconds / 1000)}s`;
+}
+
+function assertAssetCanBeUploaded(asset: ImagePicker.ImagePickerAsset, kind: "photo" | "video") {
+  const maxBytes = kind === "photo" ? MAX_PHOTO_BYTES : MAX_VIDEO_BYTES;
+  const label = kind === "photo" ? "foto" : "vídeo";
+
+  if (!asset.fileSize) {
+    throw new Error(
+      `Não foi possível ler o tamanho do ${label}. Escolha outro arquivo ou grave novamente pelo celular.`
+    );
+  }
+
+  if (asset.fileSize > maxBytes) {
+    throw new Error(
+      `O ${label} selecionado tem ${formatFileSize(asset.fileSize)}. O limite é ${formatFileSize(
+        maxBytes
+      )}. Grave em resolução menor e com duração curta.`
+    );
+  }
+
+  if (kind === "video" && asset.duration && asset.duration > MAX_VIDEO_DURATION_MS) {
+    throw new Error(
+      `O vídeo selecionado tem ${formatDuration(asset.duration)}. O limite do beta é ${formatDuration(
+        MAX_VIDEO_DURATION_MS
+      )}.`
+    );
+  }
+}
+
+function getAssetLabel(asset: ImagePicker.ImagePickerAsset, fallback: string) {
+  const size = asset.fileSize ? ` · ${formatFileSize(asset.fileSize)}` : "";
+  const duration = asset.type === "video" ? formatDuration(asset.duration) : null;
+  const durationText = duration ? ` · ${duration}` : "";
+
+  return `${asset.fileName ?? fallback}${size}${durationText}`;
+}
+
 function PrimaryButton({
   label,
   onPress,
@@ -118,14 +175,14 @@ function Pill({ label, active }: { label: string; active?: boolean }) {
   );
 }
 
-async function uploadAsset({
-  uri,
-  mimeType,
-  fileName
-}: ImagePicker.ImagePickerAsset, kind: "photo" | "video", userId: string) {
+async function uploadAsset(asset: ImagePicker.ImagePickerAsset, kind: "photo" | "video", userId: string) {
   if (!supabase) {
     throw new Error("Supabase não configurado.");
   }
+
+  assertAssetCanBeUploaded(asset, kind);
+
+  const { uri, mimeType, fileName } = asset;
 
   const extension =
     fileName?.split(".").pop() ??
@@ -343,12 +400,27 @@ function CaptureScreen({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: kind === "photo" ? ["images"] : ["videos"],
       allowsEditing: kind === "photo",
-      quality: kind === "photo" ? 0.8 : 0.6,
-      videoMaxDuration: 45
+      quality: kind === "photo" ? 0.7 : 0.4,
+      selectionLimit: 1,
+      videoExportPreset: ImagePicker.VideoExportPreset.H264_640x480,
+      videoMaxDuration: 30,
+      videoQuality: ImagePicker.UIImagePickerControllerQualityType.Low
     });
 
     if (!result.canceled) {
-      setForm({ ...form, [kind]: result.assets[0] });
+      const asset = result.assets[0];
+
+      try {
+        assertAssetCanBeUploaded(asset, kind);
+      } catch (error) {
+        Alert.alert(
+          "Arquivo muito grande",
+          error instanceof Error ? error.message : "Selecione outro arquivo."
+        );
+        return;
+      }
+
+      setForm({ ...form, [kind]: asset });
     }
   }
 
@@ -405,13 +477,13 @@ function CaptureScreen({
         <Pressable style={styles.mediaCard} onPress={() => pickMedia("photo")}>
           <Text style={styles.mediaTitle}>Foto na régua</Text>
           <Text style={styles.mediaText}>
-            {form.photo ? form.photo.fileName ?? "Foto selecionada" : "Selecionar foto"}
+            {form.photo ? getAssetLabel(form.photo, "Foto selecionada") : "Selecionar foto"}
           </Text>
         </Pressable>
         <Pressable style={styles.mediaCard} onPress={() => pickMedia("video")}>
           <Text style={styles.mediaTitle}>Vídeo curto</Text>
           <Text style={styles.mediaText}>
-            {form.video ? form.video.fileName ?? "Vídeo selecionado" : "Selecionar vídeo"}
+            {form.video ? getAssetLabel(form.video, "Vídeo selecionado") : "Selecionar vídeo"}
           </Text>
         </Pressable>
       </View>
@@ -570,10 +642,8 @@ export default function App() {
 
     try {
       if (supabase && session?.user && !demoMode) {
-        const [photoPath, videoPath] = await Promise.all([
-          uploadAsset(captureForm.photo, "photo", session.user.id),
-          uploadAsset(captureForm.video, "video", session.user.id)
-        ]);
+        const photoPath = await uploadAsset(captureForm.photo, "photo", session.user.id);
+        const videoPath = await uploadAsset(captureForm.video, "video", session.user.id);
 
         const { error } = await supabase.from("catch_submissions").insert({
           tournament_id: betaTournament.id,
