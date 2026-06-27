@@ -21,9 +21,21 @@ import type { Session } from "@supabase/supabase-js";
 import { betaTournament, seedRanking } from "./src/data/beta";
 import { isSupabaseConfigured, supabase } from "./src/lib/supabase";
 import { colors, spacing } from "./src/theme";
-import type { CaptureForm, CaptureSubmission } from "./src/types";
+import type { CaptureForm, CaptureSubmission, SubmissionStatus } from "./src/types";
 
-type AppScreen = "campeonato" | "captura" | "ranking" | "perfil";
+type AppScreen = "campeonato" | "captura" | "envios" | "ranking" | "perfil";
+
+type CatchSubmissionRow = {
+  id: string;
+  fish_species: string;
+  length_cm: number | string;
+  city: string;
+  state: string;
+  modality: string;
+  status: SubmissionStatus;
+  reviewer_notes: string | null;
+  created_at: string;
+};
 
 const logo = require("./assets/anglerfish-logo.png");
 const mark = require("./assets/anglerfish-mark.png");
@@ -94,6 +106,41 @@ function getAssetLabel(asset: ImagePicker.ImagePickerAsset, fallback: string) {
   const durationText = duration ? ` · ${duration}` : "";
 
   return `${asset.fileName ?? fallback}${size}${durationText}`;
+}
+
+function formatSubmissionDate(value: string) {
+  return new Date(value).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+}
+
+function mapCatchSubmission(row: CatchSubmissionRow, anglerName: string): CaptureSubmission {
+  return {
+    id: row.id,
+    anglerName,
+    fishSpecies: row.fish_species,
+    lengthCm: Number(row.length_cm),
+    city: row.city,
+    state: row.state,
+    modality: row.modality,
+    status: row.status,
+    createdAt: row.created_at,
+    reviewerNotes: row.reviewer_notes
+  };
+}
+
+function getStatusLabel(status: SubmissionStatus) {
+  if (status === "approved") {
+    return "Aprovada";
+  }
+
+  if (status === "rejected") {
+    return "Reprovada";
+  }
+
+  return "Em análise";
 }
 
 function PrimaryButton({
@@ -547,6 +594,101 @@ function RankingScreen({ submissions }: { submissions: CaptureSubmission[] }) {
   );
 }
 
+function EnviosScreen({
+  submissions,
+  loading,
+  onRefresh
+}: {
+  submissions: CaptureSubmission[];
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const sorted = [...submissions].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  return (
+    <ScrollView contentContainerStyle={styles.screenContent}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Seus envios</Text>
+        <Text style={styles.bodyText}>
+          Acompanhe aqui as capturas enviadas para análise antes de entrarem no ranking.
+        </Text>
+      </View>
+
+      <PrimaryButton
+        label={loading ? "Atualizando..." : "Atualizar envios"}
+        onPress={onRefresh}
+        disabled={loading}
+        variant="secondary"
+      />
+
+      {loading && sorted.length === 0 ? (
+        <ActivityIndicator color={colors.reef} style={styles.loader} />
+      ) : null}
+
+      {!loading && sorted.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateTitle}>Nenhuma captura enviada ainda</Text>
+          <Text style={styles.emptyStateText}>
+            Quando você enviar foto e vídeo de uma captura, o andamento aparecerá aqui.
+          </Text>
+        </View>
+      ) : null}
+
+      {sorted.map((submission) => (
+        <View key={submission.id} style={styles.submissionCard}>
+          <View style={styles.submissionHeader}>
+            <View>
+              <Text style={styles.submissionTitle}>{submission.fishSpecies}</Text>
+              <Text style={styles.submissionMeta}>
+                {formatSubmissionDate(submission.createdAt)} · {submission.city}/{submission.state}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.statusBadge,
+                submission.status === "approved" && styles.approvedBadge,
+                submission.status === "rejected" && styles.rejectedBadge,
+                submission.status === "pending" && styles.pendingBadge
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusBadgeText,
+                  submission.status === "approved" && styles.approvedBadgeText,
+                  submission.status === "rejected" && styles.rejectedBadgeText,
+                  submission.status === "pending" && styles.pendingBadgeText
+                ]}
+              >
+                {getStatusLabel(submission.status)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.submissionDetails}>
+            <View style={styles.submissionDetail}>
+              <Text style={styles.submissionDetailLabel}>Tamanho</Text>
+              <Text style={styles.submissionDetailValue}>{submission.lengthCm} cm</Text>
+            </View>
+            <View style={styles.submissionDetail}>
+              <Text style={styles.submissionDetailLabel}>Modalidade</Text>
+              <Text style={styles.submissionDetailValue}>{submission.modality}</Text>
+            </View>
+          </View>
+
+          {submission.reviewerNotes ? (
+            <View style={styles.reviewNote}>
+              <Text style={styles.reviewNoteLabel}>Observação da análise</Text>
+              <Text style={styles.reviewNoteText}>{submission.reviewerNotes}</Text>
+            </View>
+          ) : null}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
 function ProfileScreen({
   email,
   demoMode,
@@ -582,6 +724,8 @@ export default function App() {
   const [screen, setScreen] = useState<AppScreen>("campeonato");
   const [captureForm, setCaptureForm] = useState<CaptureForm>(emptyForm);
   const [submissions, setSubmissions] = useState<CaptureSubmission[]>(seedRanking);
+  const [mySubmissions, setMySubmissions] = useState<CaptureSubmission[]>([]);
+  const [loadingMySubmissions, setLoadingMySubmissions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
@@ -610,6 +754,49 @@ export default function App() {
     () => submissions.filter((submission) => submission.status === "approved"),
     [submissions]
   );
+
+  useEffect(() => {
+    if (!authenticated) {
+      setMySubmissions([]);
+      return;
+    }
+
+    void loadMySubmissions();
+  }, [authenticated, demoMode, session?.user.id]);
+
+  async function loadMySubmissions(showError = false) {
+    if (demoMode) {
+      return;
+    }
+
+    if (!supabase || !session?.user) {
+      setMySubmissions([]);
+      return;
+    }
+
+    setLoadingMySubmissions(true);
+
+    const { data, error } = await supabase
+      .from("catch_submissions")
+      .select("id, fish_species, length_cm, city, state, modality, status, reviewer_notes, created_at")
+      .eq("user_id", session.user.id)
+      .order("created_at", { ascending: false });
+
+    setLoadingMySubmissions(false);
+
+    if (error) {
+      if (showError) {
+        Alert.alert("Não foi possível atualizar", error.message);
+      }
+      return;
+    }
+
+    setMySubmissions(
+      ((data ?? []) as CatchSubmissionRow[]).map((row) =>
+        mapCatchSubmission(row, email || "Você")
+      )
+    );
+  }
 
   async function joinTournament() {
     if (!supabase || demoMode || !session?.user) {
@@ -702,9 +889,23 @@ export default function App() {
         },
         ...current
       ]);
+      setMySubmissions((current) => [
+        {
+          id: `local-${Date.now()}`,
+          anglerName: demoMode ? "Você no modo demo" : email || "Você",
+          fishSpecies: captureForm.fishSpecies.trim(),
+          lengthCm,
+          city: captureForm.city.trim(),
+          state: captureForm.state.trim().toUpperCase(),
+          modality: captureForm.modality.trim(),
+          status: "pending",
+          createdAt: new Date().toISOString()
+        },
+        ...current
+      ]);
       setCaptureForm(emptyForm);
       Alert.alert("Captura enviada", "Seu registro entrou na fila de análise.");
-      setScreen("ranking");
+      setScreen("envios");
     } catch (error) {
       Alert.alert(
         "Não foi possível enviar",
@@ -742,8 +943,9 @@ export default function App() {
 
       <View style={styles.tabs}>
         {[
-          ["campeonato", "Campeonato"],
+          ["campeonato", "Torneio"],
           ["captura", "Captura"],
+          ["envios", "Envios"],
           ["ranking", "Ranking"],
           ["perfil", "Perfil"]
         ].map(([key, label]) => (
@@ -773,6 +975,13 @@ export default function App() {
           onSubmit={submitCapture}
           loading={submitting}
           submitStatus={submitStatus}
+        />
+      ) : null}
+      {screen === "envios" ? (
+        <EnviosScreen
+          submissions={mySubmissions}
+          loading={loadingMySubmissions}
+          onRefresh={() => void loadMySubmissions(true)}
         />
       ) : null}
       {screen === "ranking" ? <RankingScreen submissions={approvedSubmissions} /> : null}
@@ -922,8 +1131,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
     flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: 4,
+    paddingHorizontal: 8,
     paddingVertical: 10
   },
   tab: {
@@ -938,7 +1147,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     color: colors.slate,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800"
   },
   activeTabText: {
@@ -1091,6 +1300,120 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: 3
+  },
+  emptyState: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: spacing.radius,
+    borderWidth: 1,
+    padding: spacing.card
+  },
+  emptyStateTitle: {
+    color: colors.midnight,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  emptyStateText: {
+    color: colors.slate,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 6
+  },
+  submissionCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: spacing.radius,
+    borderWidth: 1,
+    gap: 14,
+    padding: spacing.card
+  },
+  submissionHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between"
+  },
+  submissionTitle: {
+    color: colors.midnight,
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  submissionMeta: {
+    color: colors.slate,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 4
+  },
+  statusBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  pendingBadge: {
+    backgroundColor: "#fff8e1",
+    borderColor: "#f1c65b"
+  },
+  pendingBadgeText: {
+    color: "#775500"
+  },
+  approvedBadge: {
+    backgroundColor: "#e8fbf4",
+    borderColor: "#6eddb7"
+  },
+  approvedBadgeText: {
+    color: "#04724d"
+  },
+  rejectedBadge: {
+    backgroundColor: "#fff0f0",
+    borderColor: "#f0a0a0"
+  },
+  rejectedBadgeText: {
+    color: "#a62222"
+  },
+  submissionDetails: {
+    flexDirection: "row",
+    gap: 10
+  },
+  submissionDetail: {
+    backgroundColor: colors.foam,
+    borderRadius: 12,
+    flex: 1,
+    padding: 12
+  },
+  submissionDetailLabel: {
+    color: colors.slate,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  submissionDetailValue: {
+    color: colors.midnight,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 4
+  },
+  reviewNote: {
+    backgroundColor: "#f7fbff",
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12
+  },
+  reviewNoteLabel: {
+    color: colors.midnight,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  reviewNoteText: {
+    color: colors.slateDark,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4
   },
   rankCard: {
     alignItems: "center",

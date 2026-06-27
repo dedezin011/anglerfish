@@ -23,6 +23,7 @@ export type CaptureSubmission = {
   modality: string;
   status: SubmissionStatus;
   createdAt: string;
+  reviewerNotes?: string | null;
 };
 
 export type CaptureForm = {
