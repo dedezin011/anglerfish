@@ -382,12 +382,14 @@ function CaptureScreen({
   form,
   setForm,
   onSubmit,
-  loading
+  loading,
+  submitStatus
 }: {
   form: CaptureForm;
   setForm: (form: CaptureForm) => void;
   onSubmit: () => void;
   loading: boolean;
+  submitStatus: string | null;
 }) {
   async function pickMedia(kind: "photo" | "video") {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -474,13 +476,21 @@ function CaptureScreen({
       />
 
       <View style={styles.mediaGrid}>
-        <Pressable style={styles.mediaCard} onPress={() => pickMedia("photo")}>
+        <Pressable
+          disabled={loading}
+          style={[styles.mediaCard, loading && styles.disabledButton]}
+          onPress={() => pickMedia("photo")}
+        >
           <Text style={styles.mediaTitle}>Foto na régua</Text>
           <Text style={styles.mediaText}>
             {form.photo ? getAssetLabel(form.photo, "Foto selecionada") : "Selecionar foto"}
           </Text>
         </Pressable>
-        <Pressable style={styles.mediaCard} onPress={() => pickMedia("video")}>
+        <Pressable
+          disabled={loading}
+          style={[styles.mediaCard, loading && styles.disabledButton]}
+          onPress={() => pickMedia("video")}
+        >
           <Text style={styles.mediaTitle}>Vídeo curto</Text>
           <Text style={styles.mediaText}>
             {form.video ? getAssetLabel(form.video, "Vídeo selecionado") : "Selecionar vídeo"}
@@ -489,9 +499,15 @@ function CaptureScreen({
       </View>
 
       {loading ? (
-        <ActivityIndicator color={colors.reef} style={styles.loader} />
+        <View style={styles.uploadStatus}>
+          <ActivityIndicator color={colors.reef} />
+          <View style={styles.uploadStatusTextWrap}>
+            <Text style={styles.uploadStatusTitle}>{submitStatus ?? "Preparando envio..."}</Text>
+            <Text style={styles.uploadStatusText}>Mantenha o app aberto até a conclusão.</Text>
+          </View>
+        </View>
       ) : (
-        <PrimaryButton label="Enviar para análise" onPress={onSubmit} />
+        <PrimaryButton label="Enviar para análise" onPress={onSubmit} disabled={loading} />
       )}
     </ScrollView>
   );
@@ -567,6 +583,7 @@ export default function App() {
   const [captureForm, setCaptureForm] = useState<CaptureForm>(emptyForm);
   const [submissions, setSubmissions] = useState<CaptureSubmission[]>(seedRanking);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -639,12 +656,17 @@ export default function App() {
     }
 
     setSubmitting(true);
+    setSubmitStatus("Preparando envio...");
 
     try {
       if (supabase && session?.user && !demoMode) {
+        setSubmitStatus("Enviando foto da captura...");
         const photoPath = await uploadAsset(captureForm.photo, "photo", session.user.id);
+
+        setSubmitStatus("Enviando vídeo de validação...");
         const videoPath = await uploadAsset(captureForm.video, "video", session.user.id);
 
+        setSubmitStatus("Salvando captura para análise...");
         const { error } = await supabase.from("catch_submissions").insert({
           tournament_id: betaTournament.id,
           user_id: session.user.id,
@@ -662,6 +684,8 @@ export default function App() {
         if (error) {
           throw error;
         }
+      } else {
+        setSubmitStatus("Salvando captura em modo demonstração...");
       }
 
       setSubmissions((current) => [
@@ -690,6 +714,7 @@ export default function App() {
       );
     } finally {
       setSubmitting(false);
+      setSubmitStatus(null);
     }
   }
 
@@ -747,6 +772,7 @@ export default function App() {
           setForm={setCaptureForm}
           onSubmit={submitCapture}
           loading={submitting}
+          submitStatus={submitStatus}
         />
       ) : null}
       {screen === "ranking" ? <RankingScreen submissions={approvedSubmissions} /> : null}
@@ -1041,6 +1067,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 20,
     marginTop: 6
+  },
+  uploadStatus: {
+    alignItems: "center",
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: spacing.radius,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    padding: spacing.card
+  },
+  uploadStatusTextWrap: {
+    flex: 1
+  },
+  uploadStatusTitle: {
+    color: colors.midnight,
+    fontSize: 15,
+    fontWeight: "900"
+  },
+  uploadStatusText: {
+    color: colors.slate,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 3
   },
   rankCard: {
     alignItems: "center",
