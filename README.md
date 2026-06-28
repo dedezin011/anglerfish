@@ -115,7 +115,14 @@ Se você já criou o banco antes desta alteração, execute também:
 -- supabase/migrations/20260612_anonymous_survey.sql
 -- supabase/migrations/20260618_survey_suggestions.sql
 -- supabase/migrations/20260625_mobile_mvp.sql
+-- supabase/migrations/20260628_roles_and_tournament_organizers.sql
 ```
+
+A migration `20260628_roles_and_tournament_organizers.sql` prepara a separação futura entre pescador, organizador e admin:
+
+- `user_roles`: papéis globais do usuário (`angler`, `organizer`, `admin`)
+- `tournament_organizers`: vínculo entre organizadores e torneios específicos
+- políticas RLS para organizador ler/revisar apenas capturas dos torneios vinculados a ele
 
 ## App mobile
 
