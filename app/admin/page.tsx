@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   BarChart3,
+  ClipboardCheck,
   Download,
   Fish,
   Gift,
@@ -59,6 +60,8 @@ export const metadata = {
     follow: false
   }
 };
+
+export const dynamic = "force-dynamic";
 
 function countBy(rows: SurveyRow[], key: keyof SurveyRow): CountItem[] {
   const counts = rows.reduce<Record<string, number>>((acc, row) => {
@@ -324,6 +327,13 @@ export default async function AdminDashboardPage() {
             <span className="hidden text-sm text-slate-500 sm:inline">Admin</span>
           </Link>
           <div className="flex flex-wrap gap-3">
+            <Link
+              href="/admin/capturas"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-midnight transition hover:bg-foam"
+            >
+              <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
+              Analisar capturas
+            </Link>
             <a
               href="/admin/export"
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-midnight px-4 py-2 text-sm font-bold text-white transition hover:bg-harbor"
