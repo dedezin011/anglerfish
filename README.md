@@ -150,6 +150,8 @@ Fluxo esperado:
 3. Vincule o `user_id` do organizador ao torneio em `tournament_organizers`.
 4. O organizador acessa `/organizador/login` com email e senha do Supabase Auth.
 
+Para o primeiro torneio beta, use `supabase/organizer_activation_example.sql` como modelo. Troque o email do exemplo pelo email criado no Supabase Auth e execute no SQL Editor.
+
 Esse painel mostra apenas os torneios vinculados à conta logada. A revisão de captura usa a função segura `review_tournament_submission`, que impede um organizador de aprovar/reprovar capturas de torneios que não pertencem a ele.
 
 ## App mobile
