@@ -21,12 +21,13 @@ import type { Session } from "@supabase/supabase-js";
 import { betaTournament, seedRanking } from "./src/data/beta";
 import { isSupabaseConfigured, supabase } from "./src/lib/supabase";
 import { colors, spacing } from "./src/theme";
-import type { CaptureForm, CaptureSubmission, SubmissionStatus } from "./src/types";
+import type { CaptureForm, CaptureSubmission, SubmissionStatus, Tournament } from "./src/types";
 
 type AppScreen = "campeonato" | "captura" | "envios" | "ranking" | "perfil";
 
 type CatchSubmissionRow = {
   id: string;
+  tournament_id: string;
   fish_species: string;
   length_cm: number | string;
   city: string;
@@ -37,23 +38,42 @@ type CatchSubmissionRow = {
   created_at: string;
 };
 
+type TournamentRow = {
+  id: string;
+  name: string;
+  slug: string;
+  code: string;
+  status: Tournament["status"];
+  starts_at: string | null;
+  ends_at: string | null;
+  prize: string;
+  description: string;
+  rules: string[] | null;
+};
+
+type ParticipantRow = {
+  tournament_id: string;
+};
+
 const logo = require("./assets/anglerfish-logo.png");
 const mark = require("./assets/anglerfish-mark.png");
-
-const emptyForm: CaptureForm = {
-  fishSpecies: "",
-  lengthCm: "",
-  city: "",
-  state: "",
-  modality: "Pesca embarcada",
-  codeSpoken: betaTournament.code,
-  photo: null,
-  video: null
-};
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 const MAX_VIDEO_DURATION_MS = 30 * 1000;
+
+function createEmptyForm(tournament: Tournament = betaTournament): CaptureForm {
+  return {
+    fishSpecies: "",
+    lengthCm: "",
+    city: "",
+    state: "",
+    modality: "Pesca embarcada",
+    codeSpoken: tournament.code,
+    photo: null,
+    video: null
+  };
+}
 
 function formatFileSize(bytes: number) {
   const megabytes = bytes / (1024 * 1024);
@@ -114,6 +134,41 @@ function formatSubmissionDate(value: string) {
     month: "2-digit",
     year: "numeric"
   });
+}
+
+function formatTournamentRange(startsAt: string | null, endsAt: string | null) {
+  if (!startsAt && !endsAt) {
+    return "Período aberto";
+  }
+
+  const formatter = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit"
+  });
+
+  if (startsAt && endsAt) {
+    return `${formatter.format(new Date(startsAt))} até ${formatter.format(new Date(endsAt))}`;
+  }
+
+  if (startsAt) {
+    return `Início ${formatter.format(new Date(startsAt))}`;
+  }
+
+  return `Até ${formatter.format(new Date(endsAt as string))}`;
+}
+
+function mapTournament(row: TournamentRow): Tournament {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    code: row.code,
+    status: row.status,
+    dateRange: formatTournamentRange(row.starts_at, row.ends_at),
+    prize: row.prize,
+    description: row.description,
+    rules: Array.isArray(row.rules) && row.rules.length ? row.rules : betaTournament.rules
+  };
 }
 
 function mapCatchSubmission(row: CatchSubmissionRow, anglerName: string): CaptureSubmission {
@@ -222,7 +277,12 @@ function Pill({ label, active }: { label: string; active?: boolean }) {
   );
 }
 
-async function uploadAsset(asset: ImagePicker.ImagePickerAsset, kind: "photo" | "video", userId: string) {
+async function uploadAsset(
+  asset: ImagePicker.ImagePickerAsset,
+  kind: "photo" | "video",
+  userId: string,
+  tournamentId: string
+) {
   if (!supabase) {
     throw new Error("Supabase não configurado.");
   }
@@ -235,7 +295,7 @@ async function uploadAsset(asset: ImagePicker.ImagePickerAsset, kind: "photo" | 
     fileName?.split(".").pop() ??
     mimeType?.split("/").pop() ??
     (kind === "photo" ? "jpg" : "mp4");
-  const path = `${userId}/${betaTournament.id}/${kind}-${Date.now()}.${extension}`;
+  const path = `${userId}/${tournamentId}/${kind}-${Date.now()}.${extension}`;
   const response = await fetch(uri);
   const file = await response.arrayBuffer();
   const { error } = await supabase.storage.from("catch-media").upload(path, file, {
@@ -383,33 +443,119 @@ function AuthScreen({
 }
 
 function TournamentScreen({
+  tournaments,
+  selectedTournament,
+  joinedTournamentIds,
+  loading,
+  demoMode,
+  onSelectTournament,
   onStartCapture,
-  onJoin
+  onJoin,
+  onRefresh
 }: {
+  tournaments: Tournament[];
+  selectedTournament: Tournament | null;
+  joinedTournamentIds: string[];
+  loading: boolean;
+  demoMode: boolean;
+  onSelectTournament: (tournamentId: string) => void;
   onStartCapture: () => void;
-  onJoin: () => void;
+  onJoin: (tournamentId: string) => void;
+  onRefresh: () => void;
 }) {
+  const joinedSelected = Boolean(
+    selectedTournament && (demoMode || joinedTournamentIds.includes(selectedTournament.id))
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.screenContent}>
-      <LinearGradient colors={[colors.midnight, colors.harbor]} style={styles.heroCard}>
-        <Image source={mark} resizeMode="contain" style={styles.heroMark} />
-        <Text style={styles.heroEyebrow}>Beta ao vivo</Text>
-        <Text style={styles.heroTitle}>{betaTournament.name}</Text>
-        <Text style={styles.heroDescription}>{betaTournament.description}</Text>
-        <View style={styles.heroPills}>
-          <Pill label={betaTournament.code} active />
-          <Pill label={betaTournament.dateRange} />
-        </View>
-      </LinearGradient>
+      {selectedTournament ? (
+        <LinearGradient colors={[colors.midnight, colors.harbor]} style={styles.heroCard}>
+          <Image source={mark} resizeMode="contain" style={styles.heroMark} />
+          <Text style={styles.heroEyebrow}>
+            {joinedSelected ? "Você está dentro" : "Aberto para entrada"}
+          </Text>
+          <Text style={styles.heroTitle}>{selectedTournament.name}</Text>
+          <Text style={styles.heroDescription}>{selectedTournament.description}</Text>
+          <View style={styles.heroPills}>
+            <Pill label={selectedTournament.code} active />
+            <Pill label={selectedTournament.dateRange} />
+          </View>
+        </LinearGradient>
+      ) : null}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Premiação</Text>
-        <Text style={styles.bodyText}>{betaTournament.prize}</Text>
+        <Text style={styles.cardTitle}>Entrar em torneio</Text>
+        <Text style={styles.bodyText}>
+          Escolha um campeonato ativo, confirme sua participação e depois envie suas capturas para análise.
+        </Text>
       </View>
+
+      <PrimaryButton
+        label={loading ? "Atualizando torneios..." : "Atualizar torneios"}
+        onPress={onRefresh}
+        disabled={loading}
+        variant="secondary"
+      />
+
+      {loading && tournaments.length === 0 ? (
+        <ActivityIndicator color={colors.reef} style={styles.loader} />
+      ) : null}
+
+      {tournaments.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateTitle}>Nenhum torneio aberto</Text>
+          <Text style={styles.emptyStateText}>
+            Assim que um campeonato ficar ativo, ele aparecerá aqui para entrada.
+          </Text>
+        </View>
+      ) : null}
+
+      {tournaments.map((tournament) => {
+        const selected = selectedTournament?.id === tournament.id;
+        const joined = demoMode || joinedTournamentIds.includes(tournament.id);
+
+        return (
+          <Pressable
+            key={tournament.id}
+            accessibilityRole="button"
+            onPress={() => onSelectTournament(tournament.id)}
+            style={[styles.tournamentCard, selected && styles.selectedTournamentCard]}
+          >
+            <View style={styles.tournamentHeader}>
+              <View style={styles.tournamentTitleWrap}>
+                <Text style={styles.tournamentTitle}>{tournament.name}</Text>
+                <Text style={styles.tournamentMeta}>{tournament.dateRange}</Text>
+              </View>
+              <View style={[styles.joinBadge, joined && styles.joinedBadge]}>
+                <Text style={[styles.joinBadgeText, joined && styles.joinedBadgeText]}>
+                  {joined ? "Inscrito" : "Aberto"}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.tournamentDescription}>{tournament.description}</Text>
+            <View style={styles.tournamentFooter}>
+              <View style={[styles.tournamentBadge, selected && styles.selectedTournamentBadge]}>
+                <Text
+                  style={[
+                    styles.tournamentBadgeText,
+                    selected && styles.selectedTournamentBadgeText
+                  ]}
+                >
+                  {tournament.code}
+                </Text>
+              </View>
+              <View style={styles.tournamentBadge}>
+                <Text style={styles.tournamentBadgeText}>{tournament.prize}</Text>
+              </View>
+            </View>
+          </Pressable>
+        );
+      })}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Regras do envio</Text>
-        {betaTournament.rules.map((rule, index) => (
+        {(selectedTournament?.rules ?? betaTournament.rules).map((rule, index) => (
           <View key={rule} style={styles.ruleRow}>
             <Text style={styles.ruleIndex}>{index + 1}</Text>
             <Text style={styles.ruleText}>{rule}</Text>
@@ -418,20 +564,31 @@ function TournamentScreen({
       </View>
 
       <View style={styles.buttonStack}>
-        <PrimaryButton label="Participar do campeonato" onPress={onJoin} />
-        <PrimaryButton label="Enviar captura" onPress={onStartCapture} variant="secondary" />
+        <PrimaryButton
+          label={joinedSelected ? "Participação confirmada" : "Entrar no torneio"}
+          onPress={() => selectedTournament && onJoin(selectedTournament.id)}
+          disabled={!selectedTournament || joinedSelected || loading}
+        />
+        <PrimaryButton
+          label="Enviar captura"
+          onPress={onStartCapture}
+          disabled={!selectedTournament}
+          variant="secondary"
+        />
       </View>
     </ScrollView>
   );
 }
 
 function CaptureScreen({
+  tournament,
   form,
   setForm,
   onSubmit,
   loading,
   submitStatus
 }: {
+  tournament: Tournament | null;
   form: CaptureForm;
   setForm: (form: CaptureForm) => void;
   onSubmit: () => void;
@@ -478,7 +635,7 @@ function CaptureScreen({
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Enviar captura</Text>
         <Text style={styles.bodyText}>
-          Use o código {betaTournament.code} no vídeo para ajudar a validar que a captura é do desafio.
+          Use o código {tournament?.code ?? betaTournament.code} no vídeo para ajudar a validar que a captura é do desafio.
         </Text>
       </View>
 
@@ -518,7 +675,7 @@ function CaptureScreen({
         label="Código falado no vídeo"
         value={form.codeSpoken}
         onChangeText={(codeSpoken) => setForm({ ...form, codeSpoken })}
-        placeholder={betaTournament.code}
+        placeholder={tournament?.code ?? betaTournament.code}
         autoCapitalize="characters"
       />
 
@@ -722,7 +879,11 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [screen, setScreen] = useState<AppScreen>("campeonato");
-  const [captureForm, setCaptureForm] = useState<CaptureForm>(emptyForm);
+  const [tournaments, setTournaments] = useState<Tournament[]>([betaTournament]);
+  const [selectedTournamentId, setSelectedTournamentId] = useState(betaTournament.id);
+  const [joinedTournamentIds, setJoinedTournamentIds] = useState<string[]>([]);
+  const [loadingTournaments, setLoadingTournaments] = useState(false);
+  const [captureForm, setCaptureForm] = useState<CaptureForm>(createEmptyForm());
   const [submissions, setSubmissions] = useState<CaptureSubmission[]>(seedRanking);
   const [mySubmissions, setMySubmissions] = useState<CaptureSubmission[]>([]);
   const [loadingMySubmissions, setLoadingMySubmissions] = useState(false);
@@ -749,6 +910,17 @@ export default function App() {
 
   const authenticated = Boolean(session || demoMode);
   const email = session?.user.email ?? "";
+  const selectedTournament = useMemo(
+    () =>
+      tournaments.find((tournament) => tournament.id === selectedTournamentId) ??
+      tournaments[0] ??
+      null,
+    [selectedTournamentId, tournaments]
+  );
+  const joinedSelectedTournament = Boolean(
+    selectedTournament &&
+      (demoMode || joinedTournamentIds.includes(selectedTournament.id))
+  );
 
   const approvedSubmissions = useMemo(
     () => submissions.filter((submission) => submission.status === "approved"),
@@ -764,6 +936,89 @@ export default function App() {
     void loadMySubmissions();
   }, [authenticated, demoMode, session?.user.id]);
 
+  useEffect(() => {
+    if (!authenticated) {
+      setTournaments([betaTournament]);
+      setSelectedTournamentId(betaTournament.id);
+      setJoinedTournamentIds([]);
+      setCaptureForm(createEmptyForm());
+      return;
+    }
+
+    void loadTournamentPanel();
+  }, [authenticated, demoMode, session?.user.id]);
+
+  useEffect(() => {
+    if (!selectedTournament) {
+      return;
+    }
+
+    setCaptureForm((current) => ({
+      ...current,
+      codeSpoken: current.codeSpoken || selectedTournament.code
+    }));
+  }, [selectedTournament?.id]);
+
+  async function loadTournamentPanel(showError = false) {
+    if (demoMode) {
+      setTournaments([betaTournament]);
+      setSelectedTournamentId(betaTournament.id);
+      setJoinedTournamentIds([betaTournament.id]);
+      return;
+    }
+
+    if (!supabase || !session?.user) {
+      setTournaments([betaTournament]);
+      setSelectedTournamentId(betaTournament.id);
+      setJoinedTournamentIds([]);
+      return;
+    }
+
+    setLoadingTournaments(true);
+
+    const [
+      { data: tournamentsData, error: tournamentsError },
+      { data: participantsData, error: participantsError }
+    ] = await Promise.all([
+      supabase
+        .from("tournaments")
+        .select("id, name, slug, code, status, starts_at, ends_at, prize, description, rules")
+        .in("status", ["active", "completed"])
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("tournament_participants")
+        .select("tournament_id")
+        .eq("user_id", session.user.id)
+    ]);
+
+    setLoadingTournaments(false);
+
+    if (tournamentsError || participantsError) {
+      if (showError) {
+        Alert.alert(
+          "Não foi possível atualizar",
+          tournamentsError?.message ?? participantsError?.message ?? "Tente novamente."
+        );
+      }
+      return;
+    }
+
+    const nextTournaments = ((tournamentsData ?? []) as TournamentRow[]).map(mapTournament);
+    const nextJoinedIds = ((participantsData ?? []) as ParticipantRow[]).map(
+      (participant) => participant.tournament_id
+    );
+
+    setTournaments(nextTournaments);
+    setJoinedTournamentIds(nextJoinedIds);
+    setSelectedTournamentId((current) => {
+      if (nextTournaments.some((tournament) => tournament.id === current)) {
+        return current;
+      }
+
+      return nextTournaments[0]?.id ?? betaTournament.id;
+    });
+  }
+
   async function loadMySubmissions(showError = false) {
     if (demoMode) {
       return;
@@ -778,7 +1033,7 @@ export default function App() {
 
     const { data, error } = await supabase
       .from("catch_submissions")
-      .select("id, fish_species, length_cm, city, state, modality, status, reviewer_notes, created_at")
+      .select("id, tournament_id, fish_species, length_cm, city, state, modality, status, reviewer_notes, created_at")
       .eq("user_id", session.user.id)
       .order("created_at", { ascending: false });
 
@@ -798,26 +1053,75 @@ export default function App() {
     );
   }
 
-  async function joinTournament() {
-    if (!supabase || demoMode || !session?.user) {
-      Alert.alert("Você está no beta", "Participação simulada ativada para este teste.");
+  async function joinTournament(tournamentId: string) {
+    const tournament = tournaments.find((item) => item.id === tournamentId);
+
+    if (!tournament) {
+      Alert.alert("Torneio não encontrado", "Atualize a lista de torneios e tente novamente.");
       return;
     }
 
-    const { error } = await supabase.from("tournament_participants").upsert({
-      tournament_id: betaTournament.id,
+    if (!supabase || demoMode || !session?.user) {
+      setJoinedTournamentIds((current) => [...new Set([...current, tournamentId])]);
+      Alert.alert("Participação confirmada", `Você entrou em ${tournament.name}.`);
+      return;
+    }
+
+    if (joinedTournamentIds.includes(tournamentId)) {
+      Alert.alert("Você já está dentro", "Esse torneio já está liberado para envio de capturas.");
+      return;
+    }
+
+    const { error } = await supabase.from("tournament_participants").insert({
+      tournament_id: tournamentId,
       user_id: session.user.id
     });
 
-    if (error) {
+    if (error && error.code !== "23505") {
       Alert.alert("Não foi possível participar", "Confira se o SQL do app mobile foi executado no Supabase.");
       return;
     }
 
-    Alert.alert("Participação confirmada", "Você entrou no 1º Desafio Beta AnglerFish.");
+    setJoinedTournamentIds((current) => [...new Set([...current, tournamentId])]);
+    Alert.alert("Participação confirmada", `Você entrou em ${tournament.name}.`);
+  }
+
+  function startCapture() {
+    if (!selectedTournament) {
+      Alert.alert("Escolha um torneio", "Selecione um campeonato antes de enviar uma captura.");
+      setScreen("campeonato");
+      return;
+    }
+
+    if (!joinedSelectedTournament) {
+      Alert.alert(
+        "Entre no torneio primeiro",
+        "Confirme sua participação no campeonato antes de enviar uma captura."
+      );
+      setScreen("campeonato");
+      return;
+    }
+
+    setCaptureForm(createEmptyForm(selectedTournament));
+    setScreen("captura");
   }
 
   async function submitCapture() {
+    if (!selectedTournament) {
+      Alert.alert("Escolha um torneio", "Selecione um campeonato antes de enviar uma captura.");
+      setScreen("campeonato");
+      return;
+    }
+
+    if (!joinedSelectedTournament) {
+      Alert.alert(
+        "Entre no torneio primeiro",
+        "Confirme sua participação no campeonato antes de enviar uma captura."
+      );
+      setScreen("campeonato");
+      return;
+    }
+
     const lengthCm = Number(captureForm.lengthCm.replace(",", "."));
 
     if (
@@ -848,14 +1152,24 @@ export default function App() {
     try {
       if (supabase && session?.user && !demoMode) {
         setSubmitStatus("Enviando foto da captura...");
-        const photoPath = await uploadAsset(captureForm.photo, "photo", session.user.id);
+        const photoPath = await uploadAsset(
+          captureForm.photo,
+          "photo",
+          session.user.id,
+          selectedTournament.id
+        );
 
         setSubmitStatus("Enviando vídeo de validação...");
-        const videoPath = await uploadAsset(captureForm.video, "video", session.user.id);
+        const videoPath = await uploadAsset(
+          captureForm.video,
+          "video",
+          session.user.id,
+          selectedTournament.id
+        );
 
         setSubmitStatus("Salvando captura para análise...");
         const { error } = await supabase.from("catch_submissions").insert({
-          tournament_id: betaTournament.id,
+          tournament_id: selectedTournament.id,
           user_id: session.user.id,
           fish_species: captureForm.fishSpecies.trim(),
           length_cm: lengthCm,
@@ -903,7 +1217,7 @@ export default function App() {
         },
         ...current
       ]);
-      setCaptureForm(emptyForm);
+      setCaptureForm(createEmptyForm(selectedTournament));
       Alert.alert("Captura enviada", "Seu registro entrou na fila de análise.");
       setScreen("envios");
     } catch (error) {
@@ -952,7 +1266,16 @@ export default function App() {
           <Pressable
             key={key}
             accessibilityRole="button"
-            onPress={() => setScreen(key as AppScreen)}
+            onPress={() => {
+              if (key === "captura") {
+                if (screen !== "captura") {
+                  startCapture();
+                }
+                return;
+              }
+
+              setScreen(key as AppScreen);
+            }}
             style={[styles.tab, screen === key && styles.activeTab]}
           >
             <Text style={[styles.tabText, screen === key && styles.activeTabText]}>
@@ -964,12 +1287,20 @@ export default function App() {
 
       {screen === "campeonato" ? (
         <TournamentScreen
+          tournaments={tournaments}
+          selectedTournament={selectedTournament}
+          joinedTournamentIds={joinedTournamentIds}
+          loading={loadingTournaments}
+          demoMode={demoMode}
+          onSelectTournament={setSelectedTournamentId}
           onJoin={joinTournament}
-          onStartCapture={() => setScreen("captura")}
+          onStartCapture={startCapture}
+          onRefresh={() => void loadTournamentPanel(true)}
         />
       ) : null}
       {screen === "captura" ? (
         <CaptureScreen
+          tournament={selectedTournament}
           form={captureForm}
           setForm={setCaptureForm}
           onSubmit={submitCapture}
@@ -1231,6 +1562,89 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     marginTop: 8
+  },
+  tournamentCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: spacing.radius,
+    borderWidth: 1,
+    gap: 12,
+    padding: spacing.card
+  },
+  selectedTournamentCard: {
+    borderColor: colors.reef,
+    borderWidth: 2
+  },
+  tournamentHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between"
+  },
+  tournamentTitleWrap: {
+    flex: 1
+  },
+  tournamentTitle: {
+    color: colors.midnight,
+    fontSize: 17,
+    fontWeight: "900",
+    lineHeight: 23
+  },
+  tournamentMeta: {
+    color: colors.slate,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 4
+  },
+  tournamentDescription: {
+    color: colors.slateDark,
+    fontSize: 13,
+    lineHeight: 20
+  },
+  tournamentFooter: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  tournamentBadge: {
+    backgroundColor: colors.foam,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  selectedTournamentBadge: {
+    backgroundColor: colors.reef,
+    borderColor: colors.reef
+  },
+  tournamentBadgeText: {
+    color: colors.midnight,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  selectedTournamentBadgeText: {
+    color: colors.midnight
+  },
+  joinBadge: {
+    backgroundColor: "#fff8e1",
+    borderColor: "#f1c65b",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  joinedBadge: {
+    backgroundColor: "#e8fbf4",
+    borderColor: "#6eddb7"
+  },
+  joinBadgeText: {
+    color: "#775500",
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  joinedBadgeText: {
+    color: "#04724d"
   },
   ruleRow: {
     flexDirection: "row",

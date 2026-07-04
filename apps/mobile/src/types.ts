@@ -3,6 +3,7 @@ import type { ImagePickerAsset } from "expo-image-picker";
 export type Tournament = {
   id: string;
   name: string;
+  slug?: string;
   code: string;
   status: "active" | "draft" | "completed";
   dateRange: string;
