@@ -44,12 +44,22 @@ app/
     login/
       LoginForm.tsx
       page.tsx
+  organizador/
+    actions.ts
+    page.tsx
+    capturas/
+      actions.ts
+      page.tsx
+    login/
+      LoginForm.tsx
+      page.tsx
   components/
     WaitlistForm.tsx
   privacidade/
     page.tsx
 lib/
   admin-auth.ts
+  organizer-auth.ts
   supabase.ts
 supabase/
   schema.sql
@@ -66,13 +76,14 @@ Crie `.env.local` com base em `.env.example`:
 ```env
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SUPABASE_URL=https://seu-projeto.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel-ou-anon
 SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
 ADMIN_EMAIL=admin@anglerfish.com.br
 ADMIN_PASSWORD=uma-senha-forte
 ADMIN_SESSION_SECRET=um-segredo-aleatorio-longo
 ```
 
-`SUPABASE_SERVICE_ROLE_KEY` deve ficar apenas no servidor. Não use `NEXT_PUBLIC_` nessa chave.
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` é a chave pública do Supabase usada para login de organizadores. `SUPABASE_SERVICE_ROLE_KEY` deve ficar apenas no servidor. Não use `NEXT_PUBLIC_` nessa chave.
 
 ## Banco de dados Supabase
 
@@ -123,6 +134,23 @@ A migration `20260628_roles_and_tournament_organizers.sql` prepara a separação
 - `user_roles`: papéis globais do usuário (`angler`, `organizer`, `admin`)
 - `tournament_organizers`: vínculo entre organizadores e torneios específicos
 - políticas RLS para organizador ler/revisar apenas capturas dos torneios vinculados a ele
+
+## Painel do organizador
+
+O painel do organizador fica em:
+
+```text
+/organizador
+```
+
+Fluxo esperado:
+
+1. Crie o usuário do organizador no Supabase Auth.
+2. Execute a migration `supabase/migrations/20260628_roles_and_tournament_organizers.sql`.
+3. Vincule o `user_id` do organizador ao torneio em `tournament_organizers`.
+4. O organizador acessa `/organizador/login` com email e senha do Supabase Auth.
+
+Esse painel mostra apenas os torneios vinculados à conta logada. A revisão de captura usa a função segura `review_tournament_submission`, que impede um organizador de aprovar/reprovar capturas de torneios que não pertencem a ele.
 
 ## App mobile
 
@@ -181,6 +209,7 @@ npm run start
 ```env
 NEXT_PUBLIC_SITE_URL=https://seu-dominio.com
 SUPABASE_URL=https://seu-projeto.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel-ou-anon
 SUPABASE_SERVICE_ROLE_KEY=sua-service-role-key
 ADMIN_EMAIL=admin@anglerfish.com.br
 ADMIN_PASSWORD=uma-senha-forte

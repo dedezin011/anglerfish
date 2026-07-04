@@ -31,3 +31,48 @@ export function getSupabaseAdmin() {
     }
   });
 }
+
+function getSupabasePublicKey() {
+  return (
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.SUPABASE_ANON_KEY
+  );
+}
+
+export function getSupabasePublic() {
+  const url = process.env.SUPABASE_URL;
+  const publicKey = getSupabasePublicKey();
+
+  if (!url || !publicKey) {
+    throw new Error("Supabase public environment variables are not configured.");
+  }
+
+  return createClient(url, publicKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
+
+export function getSupabaseUser(accessToken: string) {
+  const url = process.env.SUPABASE_URL;
+  const publicKey = getSupabasePublicKey();
+
+  if (!url || !publicKey) {
+    throw new Error("Supabase public environment variables are not configured.");
+  }
+
+  return createClient(url, publicKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    }
+  });
+}
