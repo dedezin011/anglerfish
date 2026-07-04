@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  ImageBackground,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -48,6 +49,7 @@ type TournamentRow = {
   ends_at: string | null;
   prize: string;
   description: string;
+  cover_image_path?: string | null;
   rules: string[] | null;
 };
 
@@ -158,6 +160,11 @@ function formatTournamentRange(startsAt: string | null, endsAt: string | null) {
 }
 
 function mapTournament(row: TournamentRow): Tournament {
+  const coverImageUrl =
+    row.cover_image_path && supabase
+      ? supabase.storage.from("tournament-assets").getPublicUrl(row.cover_image_path).data.publicUrl
+      : null;
+
   return {
     id: row.id,
     name: row.name,
@@ -167,6 +174,7 @@ function mapTournament(row: TournamentRow): Tournament {
     dateRange: formatTournamentRange(row.starts_at, row.ends_at),
     prize: row.prize,
     description: row.description,
+    coverImageUrl,
     rules: Array.isArray(row.rules) && row.rules.length ? row.rules : betaTournament.rules
   };
 }
@@ -466,21 +474,40 @@ function TournamentScreen({
   const joinedSelected = Boolean(
     selectedTournament && (demoMode || joinedTournamentIds.includes(selectedTournament.id))
   );
+  const heroContent = selectedTournament ? (
+    <>
+      <Image source={mark} resizeMode="contain" style={styles.heroMark} />
+      <Text style={styles.heroEyebrow}>
+        {joinedSelected ? "Você está dentro" : "Aberto para entrada"}
+      </Text>
+      <Text style={styles.heroTitle}>{selectedTournament.name}</Text>
+      <Text style={styles.heroDescription}>{selectedTournament.description}</Text>
+      <View style={styles.heroPills}>
+        <Pill label={selectedTournament.code} active />
+        <Pill label={selectedTournament.dateRange} />
+      </View>
+    </>
+  ) : null;
 
   return (
     <ScrollView contentContainerStyle={styles.screenContent}>
-      {selectedTournament ? (
+      {selectedTournament?.coverImageUrl ? (
+        <ImageBackground
+          source={{ uri: selectedTournament.coverImageUrl }}
+          resizeMode="cover"
+          style={[styles.heroCard, styles.heroImageCard]}
+          imageStyle={styles.heroImage}
+        >
+          <LinearGradient
+            colors={["rgba(2,18,32,0.45)", "rgba(2,18,32,0.92)"]}
+            style={styles.heroCoverOverlay}
+          >
+            {heroContent}
+          </LinearGradient>
+        </ImageBackground>
+      ) : selectedTournament ? (
         <LinearGradient colors={[colors.midnight, colors.harbor]} style={styles.heroCard}>
-          <Image source={mark} resizeMode="contain" style={styles.heroMark} />
-          <Text style={styles.heroEyebrow}>
-            {joinedSelected ? "Você está dentro" : "Aberto para entrada"}
-          </Text>
-          <Text style={styles.heroTitle}>{selectedTournament.name}</Text>
-          <Text style={styles.heroDescription}>{selectedTournament.description}</Text>
-          <View style={styles.heroPills}>
-            <Pill label={selectedTournament.code} active />
-            <Pill label={selectedTournament.dateRange} />
-          </View>
+          {heroContent}
         </LinearGradient>
       ) : null}
 
@@ -534,6 +561,9 @@ function TournamentScreen({
               </View>
             </View>
             <Text style={styles.tournamentDescription}>{tournament.description}</Text>
+            {tournament.coverImageUrl ? (
+              <Image source={{ uri: tournament.coverImageUrl }} resizeMode="cover" style={styles.tournamentCover} />
+            ) : null}
             <View style={styles.tournamentFooter}>
               <View style={[styles.tournamentBadge, selected && styles.selectedTournamentBadge]}>
                 <Text
@@ -982,7 +1012,7 @@ export default function App() {
     ] = await Promise.all([
       supabase
         .from("tournaments")
-        .select("id, name, slug, code, status, starts_at, ends_at, prize, description, rules")
+        .select("*")
         .in("status", ["active", "completed"])
         .order("created_at", { ascending: false }),
       supabase
@@ -1495,6 +1525,16 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: 20
   },
+  heroImage: {
+    borderRadius: 18
+  },
+  heroImageCard: {
+    padding: 0
+  },
+  heroCoverOverlay: {
+    flex: 1,
+    padding: 20
+  },
   heroMark: {
     alignSelf: "flex-end",
     height: 82,
@@ -1600,6 +1640,11 @@ const styles = StyleSheet.create({
     color: colors.slateDark,
     fontSize: 13,
     lineHeight: 20
+  },
+  tournamentCover: {
+    borderRadius: 12,
+    height: 118,
+    width: "100%"
   },
   tournamentFooter: {
     flexDirection: "row",

@@ -9,6 +9,7 @@ export type Tournament = {
   dateRange: string;
   prize: string;
   description: string;
+  coverImageUrl?: string | null;
   rules: string[];
 };
 

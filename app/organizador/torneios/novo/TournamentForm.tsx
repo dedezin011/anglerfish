@@ -71,7 +71,7 @@ export function TournamentForm() {
   }, [codeTouched, name, slugTouched]);
 
   return (
-    <form action={formAction} className="grid gap-5">
+    <form action={formAction} encType="multipart/form-data" className="grid gap-5">
       <div className="grid gap-4 lg:grid-cols-2">
         <label className="grid gap-2 text-sm font-bold text-midnight">
           Nome do torneio
@@ -100,6 +100,20 @@ export function TournamentForm() {
           />
         </label>
       </div>
+
+      <label className="grid gap-2 text-sm font-bold text-midnight">
+        Capa do torneio
+        <input
+          name="cover_image"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="min-h-12 cursor-pointer rounded-md border border-dashed border-slate-300 bg-foam px-4 py-3 text-sm font-normal text-slate-600 outline-none transition file:mr-4 file:rounded-md file:border-0 file:bg-midnight file:px-4 file:py-2 file:text-sm file:font-black file:text-white hover:border-reef focus:border-reef focus:ring-4 focus:ring-reef/15"
+        />
+        <span className="text-xs font-semibold leading-5 text-slate-500">
+          Opcional. Use uma imagem horizontal 16:9 com logo, nome do patrocinador ou arte do
+          campeonato. JPG, PNG ou WebP até 5 MB.
+        </span>
+      </label>
 
       <label className="grid gap-2 text-sm font-bold text-midnight">
         Descrição

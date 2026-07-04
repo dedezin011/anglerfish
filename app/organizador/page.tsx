@@ -22,6 +22,7 @@ type TournamentRow = {
   description: string;
   code: string;
   prize: string;
+  cover_image_path?: string | null;
   starts_at: string | null;
   ends_at: string | null;
   status: "draft" | "active" | "completed";
@@ -41,6 +42,7 @@ type TournamentSummary = TournamentRow & {
   approvedCaptures: number;
   rejectedCaptures: number;
   bestLength: number | null;
+  coverImageUrl: string | null;
 };
 
 export const metadata = {
@@ -111,6 +113,17 @@ function StatCard({
   );
 }
 
+function getTournamentCoverUrl(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  path?: string | null
+) {
+  if (!path) {
+    return null;
+  }
+
+  return supabase.storage.from("tournament-assets").getPublicUrl(path).data.publicUrl;
+}
+
 async function loadOrganizerDashboard(userId: string) {
   const supabase = getSupabaseAdmin();
   const { data: linksData, error: linksError } = await supabase
@@ -141,7 +154,7 @@ async function loadOrganizerDashboard(userId: string) {
     await Promise.all([
       supabase
         .from("tournaments")
-        .select("id, name, slug, description, code, prize, starts_at, ends_at, status")
+        .select("*")
         .in("id", tournamentIds)
         .order("created_at", { ascending: false }),
       supabase
@@ -174,7 +187,8 @@ async function loadOrganizerDashboard(userId: string) {
       pendingCaptures: tournamentCaptures.filter((capture) => capture.status === "pending").length,
       approvedCaptures: tournamentCaptures.filter((capture) => capture.status === "approved").length,
       rejectedCaptures: tournamentCaptures.filter((capture) => capture.status === "rejected").length,
-      bestLength: bestLength ?? null
+      bestLength: bestLength ?? null,
+      coverImageUrl: getTournamentCoverUrl(supabase, tournament.cover_image_path)
     };
   });
 
@@ -257,6 +271,20 @@ export default async function OrganizerPage() {
                 key={tournament.id}
                 className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
               >
+                {tournament.coverImageUrl ? (
+                  <div
+                    className="mb-5 flex min-h-44 items-end overflow-hidden rounded-md bg-midnight bg-cover bg-center p-5"
+                    style={{
+                      backgroundImage: `linear-gradient(180deg, rgba(2, 18, 32, 0.25), rgba(2, 18, 32, 0.88)), url(${tournament.coverImageUrl})`
+                    }}
+                  >
+                    <div>
+                      <p className="text-xs font-black uppercase text-reef">Capa do torneio</p>
+                      <p className="mt-1 text-2xl font-black text-white">{tournament.name}</p>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">

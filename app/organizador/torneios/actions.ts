@@ -2,8 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { randomUUID } from "node:crypto";
 import { getOrganizerSession } from "@/lib/organizer-auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
+
+const coverBucket = "tournament-assets";
+const maxCoverBytes = 5 * 1024 * 1024;
+const allowedCoverTypes = ["image/jpeg", "image/png", "image/webp"];
 
 export type CreateTournamentState = {
   ok: boolean;
@@ -66,6 +71,68 @@ function parseBrazilDateTime(value: string) {
   return date.toISOString();
 }
 
+function getCoverFile(formData: FormData) {
+  const value = formData.get("cover_image");
+
+  if (!(value instanceof File) || value.size === 0) {
+    return null;
+  }
+
+  return value;
+}
+
+function validateCoverFile(file: File | null) {
+  if (!file) {
+    return null;
+  }
+
+  if (!allowedCoverTypes.includes(file.type)) {
+    return "A capa precisa ser JPG, PNG ou WebP.";
+  }
+
+  if (file.size > maxCoverBytes) {
+    return "A capa precisa ter no máximo 5 MB.";
+  }
+
+  return null;
+}
+
+function getCoverExtension(file: File) {
+  if (file.type === "image/png") {
+    return "png";
+  }
+
+  if (file.type === "image/webp") {
+    return "webp";
+  }
+
+  return "jpg";
+}
+
+async function uploadCoverImage({
+  file,
+  tournamentId
+}: {
+  file: File;
+  tournamentId: string;
+}) {
+  const supabase = getSupabaseAdmin();
+  const extension = getCoverExtension(file);
+  const path = `${tournamentId}/cover-${randomUUID()}.${extension}`;
+  const bytes = await file.arrayBuffer();
+
+  const { error } = await supabase.storage.from(coverBucket).upload(path, bytes, {
+    contentType: file.type,
+    upsert: false
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return path;
+}
+
 export async function createOrganizerTournament(
   _previousState: CreateTournamentState,
   formData: FormData
@@ -86,11 +153,20 @@ export async function createOrganizerTournament(
   const startsAt = parseBrazilDateTime(getString(formData, "starts_at"));
   const endsAt = parseBrazilDateTime(getString(formData, "ends_at"));
   const rules = parseRules(getString(formData, "rules"));
+  const coverFile = getCoverFile(formData);
+  const coverValidationError = validateCoverFile(coverFile);
 
   if (!name || !description || !prize || !slug || !code) {
     return {
       ok: false,
       message: "Preencha nome, slug, descrição, código e premiação."
+    };
+  }
+
+  if (coverValidationError) {
+    return {
+      ok: false,
+      message: coverValidationError
     };
   }
 
@@ -102,9 +178,50 @@ export async function createOrganizerTournament(
   }
 
   const supabase = getSupabaseAdmin();
+  const tournamentId = randomUUID();
+  let coverImagePath: string | null = null;
+
+  const { data: existingTournament, error: existingError } = await supabase
+    .from("tournaments")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (existingError) {
+    return {
+      ok: false,
+      message: existingError.message
+    };
+  }
+
+  if (existingTournament) {
+    return {
+      ok: false,
+      message: "Já existe um torneio com esse slug. Troque o identificador."
+    };
+  }
+
+  if (coverFile) {
+    try {
+      coverImagePath = await uploadCoverImage({
+        file: coverFile,
+        tournamentId
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível enviar a capa do torneio."
+      };
+    }
+  }
+
   const { data: tournament, error: tournamentError } = await supabase
     .from("tournaments")
     .insert({
+      id: tournamentId,
       name,
       slug,
       description,
@@ -113,7 +230,8 @@ export async function createOrganizerTournament(
       starts_at: startsAt,
       ends_at: endsAt,
       status,
-      rules
+      rules,
+      ...(coverImagePath ? { cover_image_path: coverImagePath } : {})
     })
     .select("id")
     .single();

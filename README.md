@@ -127,6 +127,7 @@ Se você já criou o banco antes desta alteração, execute também:
 -- supabase/migrations/20260618_survey_suggestions.sql
 -- supabase/migrations/20260625_mobile_mvp.sql
 -- supabase/migrations/20260628_roles_and_tournament_organizers.sql
+-- supabase/migrations/20260704_tournament_cover_assets.sql
 ```
 
 A migration `20260628_roles_and_tournament_organizers.sql` prepara a separação futura entre pescador, organizador e admin:
@@ -161,6 +162,12 @@ Organizadores também podem criar campeonatos direto pelo painel:
 ```
 
 Ao criar um torneio por essa tela, o sistema já vincula automaticamente o organizador logado como `owner`. Torneios com status `active` aparecem no app mobile na aba `Torneio`.
+
+A migration `20260704_tournament_cover_assets.sql` adiciona capa/plano de fundo para torneios:
+
+- campo `cover_image_path` em `tournaments`
+- bucket público `tournament-assets`
+- leitura pública das capas para exibição no app e no painel
 
 ## App mobile
 
