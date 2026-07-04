@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock3,
   LogOut,
+  PlusCircle,
   ShieldCheck,
   Trophy,
   XCircle
@@ -211,15 +212,24 @@ export default async function OrganizerPage() {
             />
             <span className="hidden text-sm text-slate-500 sm:inline">Organizador</span>
           </Link>
-          <form action={logoutOrganizer}>
-            <button
-              type="submit"
-              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-midnight transition hover:bg-foam"
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/organizador/torneios/novo"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-midnight px-4 py-2 text-sm font-black text-white transition hover:bg-kelp"
             >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              Sair
-            </button>
-          </form>
+              <PlusCircle className="h-4 w-4" aria-hidden="true" />
+              Criar torneio
+            </Link>
+            <form action={logoutOrganizer}>
+              <button
+                type="submit"
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-midnight transition hover:bg-foam"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Sair
+              </button>
+            </form>
+          </div>
         </div>
       </header>
 

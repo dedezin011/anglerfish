@@ -154,6 +154,14 @@ Para o primeiro torneio beta, use `supabase/organizer_activation_example.sql` co
 
 Esse painel mostra apenas os torneios vinculados à conta logada. A revisão de captura usa a função segura `review_tournament_submission`, que impede um organizador de aprovar/reprovar capturas de torneios que não pertencem a ele.
 
+Organizadores também podem criar campeonatos direto pelo painel:
+
+```text
+/organizador/torneios/novo
+```
+
+Ao criar um torneio por essa tela, o sistema já vincula automaticamente o organizador logado como `owner`. Torneios com status `active` aparecem no app mobile na aba `Torneio`.
+
 ## App mobile
 
 O MVP mobile fica em `apps/mobile` e foi criado com Expo + React Native.
