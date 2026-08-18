@@ -16,15 +16,27 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
+import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
 import type { Session } from "@supabase/supabase-js";
+import MapView, { Marker, Polyline, type Region } from "react-native-maps";
 
 import { betaTournament, seedRanking } from "./src/data/beta";
 import { isSupabaseConfigured, supabase } from "./src/lib/supabase";
 import { colors, spacing } from "./src/theme";
-import type { CaptureForm, CaptureSubmission, SubmissionStatus, Tournament } from "./src/types";
+import type {
+  CaptureForm,
+  CaptureSubmission,
+  FishingRoute,
+  FishingRouteDifficulty,
+  FishingRouteDraftPoint,
+  FishingRouteForm,
+  FishingRoutePoint,
+  SubmissionStatus,
+  Tournament
+} from "./src/types";
 
-type AppScreen = "campeonato" | "captura" | "envios" | "ranking" | "perfil";
+type AppScreen = "campeonato" | "captura" | "envios" | "mapa" | "ranking" | "perfil";
 
 type CatchSubmissionRow = {
   id: string;
@@ -57,12 +69,92 @@ type ParticipantRow = {
   tournament_id: string;
 };
 
+type FishingRoutePointRow = {
+  id: string;
+  title: string;
+  notes: string | null;
+  latitude: number | string;
+  longitude: number | string;
+  sort_order: number | null;
+};
+
+type FishingRouteRow = {
+  id: string;
+  owner_id: string;
+  title: string;
+  description: string;
+  city: string;
+  state: string;
+  modality: string;
+  target_species: string[] | null;
+  difficulty: FishingRouteDifficulty;
+  price_cents: number | string;
+  is_published: boolean;
+  active_until: string | null;
+  preview_lat: number | string;
+  preview_lng: number | string;
+  created_at: string;
+  fishing_route_points?: FishingRoutePointRow[] | null;
+};
+
+type FishingRouteUnlockRow = {
+  route_id: string;
+};
+
 const logo = require("./assets/anglerfish-logo.png");
 const mark = require("./assets/anglerfish-mark.png");
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 const MAX_VIDEO_DURATION_MS = 30 * 1000;
+
+const DEFAULT_MAP_REGION: Region = {
+  latitude: -22.734,
+  longitude: -47.647,
+  latitudeDelta: 8,
+  longitudeDelta: 8
+};
+
+const demoFishingRoutes: FishingRoute[] = [
+  {
+    id: "demo-route-1",
+    ownerId: "demo-owner",
+    title: "Manha de tucuna no lago",
+    description:
+      "Ponto demonstrativo com estrutura, dica de isca e melhor horario para bater margem.",
+    city: "Presidente Epitacio",
+    state: "SP",
+    modality: "Pesca embarcada",
+    targetSpecies: ["Tucunare", "Traira"],
+    difficulty: "media",
+    priceCents: 2900,
+    isPublished: true,
+    activeUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    previewLatitude: -21.765,
+    previewLongitude: -52.115,
+    unlocked: true,
+    owned: false,
+    createdAt: new Date().toISOString(),
+    points: [
+      {
+        id: "demo-route-1-point-1",
+        title: "Entrada do corixo",
+        notes: "Comece com meia agua e recolhimento curto.",
+        latitude: -21.765,
+        longitude: -52.115,
+        sortOrder: 1
+      },
+      {
+        id: "demo-route-1-point-2",
+        title: "Ponta com galhada",
+        notes: "Bom ao nascer do sol. Evite motor perto da margem.",
+        latitude: -21.752,
+        longitude: -52.082,
+        sortOrder: 2
+      }
+    ]
+  }
+];
 
 function createEmptyForm(tournament: Tournament = betaTournament): CaptureForm {
   return {
@@ -74,6 +166,181 @@ function createEmptyForm(tournament: Tournament = betaTournament): CaptureForm {
     codeSpoken: tournament.code,
     photo: null,
     video: null
+  };
+}
+
+function createEmptyRouteForm(): FishingRouteForm {
+  return {
+    title: "",
+    description: "",
+    city: "",
+    state: "",
+    modality: "Pesca embarcada",
+    targetSpecies: "",
+    difficulty: "media",
+    price: "",
+    saleDurationDays: "30",
+    isPublished: true,
+    currentPointTitle: "Ponto 1",
+    currentPointNotes: "",
+    currentLatitude: "",
+    currentLongitude: "",
+    points: []
+  };
+}
+
+function normalizeDecimal(value: string) {
+  return Number(value.replace(",", ".").trim());
+}
+
+function parsePriceToCents(value: string) {
+  if (!value.trim()) {
+    return 0;
+  }
+
+  const normalized = value.replace(/\./g, "").replace(",", ".");
+  const parsed = Number(normalized);
+
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return Number.NaN;
+  }
+
+  return Math.round(parsed * 100);
+}
+
+function formatPriceCents(value: number) {
+  if (value <= 0) {
+    return "Gratuita";
+  }
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  }).format(value / 100);
+}
+
+function addDays(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString();
+}
+
+function parseSaleDurationDays(value: string) {
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return Number.NaN;
+  }
+
+  return parsed;
+}
+
+function formatActiveUntil(value: string) {
+  return new Date(value).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+}
+
+function isRouteActiveForSale(route: Pick<FishingRoute, "owned" | "activeUntil" | "isPublished">) {
+  if (route.owned) {
+    return true;
+  }
+
+  return route.isPublished && new Date(route.activeUntil).getTime() > Date.now();
+}
+
+function shouldShowRoute(route: FishingRoute) {
+  return route.owned || route.unlocked || isRouteActiveForSale(route);
+}
+
+
+function getDifficultyLabel(value: FishingRouteDifficulty) {
+  if (value === "facil") {
+    return "Facil";
+  }
+
+  if (value === "dificil") {
+    return "Dificil";
+  }
+
+  return "Media";
+}
+
+function mapFishingRoutePoint(row: FishingRoutePointRow): FishingRoutePoint {
+  return {
+    id: row.id,
+    title: row.title,
+    notes: row.notes ?? "",
+    latitude: Number(row.latitude),
+    longitude: Number(row.longitude),
+    sortOrder: row.sort_order ?? 0
+  };
+}
+
+function mapFishingRoute(
+  row: FishingRouteRow,
+  userId: string,
+  unlockedRouteIds: Set<string>
+): FishingRoute {
+  const owned = row.owner_id === userId;
+  const priceCents = Number(row.price_cents);
+  const unlocked = owned || priceCents <= 0 || unlockedRouteIds.has(row.id);
+
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    title: row.title,
+    description: row.description,
+    city: row.city,
+    state: row.state,
+    modality: row.modality,
+    targetSpecies: row.target_species ?? [],
+    difficulty: row.difficulty,
+    priceCents,
+    isPublished: row.is_published,
+    activeUntil: row.active_until ?? addDays(30),
+    previewLatitude: Number(row.preview_lat),
+    previewLongitude: Number(row.preview_lng),
+    points: unlocked
+      ? [...(row.fishing_route_points ?? [])]
+          .map(mapFishingRoutePoint)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+      : [],
+    unlocked,
+    owned,
+    createdAt: row.created_at
+  };
+}
+
+function getRoutesMapRegion(routes: FishingRoute[], selectedRoute?: FishingRoute | null): Region {
+  const sourcePoints = selectedRoute?.points.length
+    ? selectedRoute.points.map((point) => ({
+        latitude: point.latitude,
+        longitude: point.longitude
+      }))
+    : routes.map((route) => ({
+        latitude: route.previewLatitude,
+        longitude: route.previewLongitude
+      }));
+
+  if (sourcePoints.length === 0) {
+    return DEFAULT_MAP_REGION;
+  }
+
+  const latitudes = sourcePoints.map((point) => point.latitude);
+  const longitudes = sourcePoints.map((point) => point.longitude);
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLng = Math.min(...longitudes);
+  const maxLng = Math.max(...longitudes);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max(0.03, (maxLat - minLat) * 2 || 0.08),
+    longitudeDelta: Math.max(0.03, (maxLng - minLng) * 2 || 0.08)
   };
 }
 
@@ -876,6 +1143,429 @@ function EnviosScreen({
   );
 }
 
+function FishingRoutesScreen({
+  routes,
+  selectedRouteId,
+  routeForm,
+  loading,
+  saving,
+  unlockingRouteId,
+  onRefresh,
+  onSelectRoute,
+  onUnlockRoute,
+  onRouteFormChange,
+  onUseCurrentLocation,
+  onAddPoint,
+  onRemovePoint,
+  onSaveRoute
+}: {
+  routes: FishingRoute[];
+  selectedRouteId: string | null;
+  routeForm: FishingRouteForm;
+  loading: boolean;
+  saving: boolean;
+  unlockingRouteId: string | null;
+  onRefresh: () => void;
+  onSelectRoute: (routeId: string) => void;
+  onUnlockRoute: (routeId: string) => void;
+  onRouteFormChange: (form: FishingRouteForm) => void;
+  onUseCurrentLocation: () => void;
+  onAddPoint: () => void;
+  onRemovePoint: (pointId: string) => void;
+  onSaveRoute: () => void;
+}) {
+  const selectedRoute = routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null;
+  const mapRegion = getRoutesMapRegion(routes, selectedRoute);
+  const visibleRoutePoints = selectedRoute?.points ?? [];
+  const mapKey = `${selectedRoute?.id ?? "map"}-${visibleRoutePoints.length}`;
+  const draftLatitude = normalizeDecimal(routeForm.currentLatitude);
+  const draftLongitude = normalizeDecimal(routeForm.currentLongitude);
+  const draftPointCoordinate =
+    !Number.isNaN(draftLatitude) && !Number.isNaN(draftLongitude)
+      ? {
+          latitude: draftLatitude,
+          longitude: draftLongitude
+        }
+      : null;
+
+  function updateField<Key extends keyof FishingRouteForm>(
+    key: Key,
+    value: FishingRouteForm[Key]
+  ) {
+    onRouteFormChange({
+      ...routeForm,
+      [key]: value
+    });
+  }
+
+  function pickPointOnMap(latitude: number, longitude: number) {
+    onRouteFormChange({
+      ...routeForm,
+      currentLatitude: latitude.toFixed(6),
+      currentLongitude: longitude.toFixed(6)
+    });
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.screenContent}>
+      <LinearGradient colors={[colors.midnight, colors.harbor]} style={styles.heroCard}>
+        <Image source={mark} resizeMode="contain" style={styles.heroMark} />
+        <Text style={styles.heroEyebrow}>Marketplace de pontos</Text>
+        <Text style={styles.heroTitle}>Venda seus pontos de pesca.</Text>
+        <Text style={styles.heroDescription}>
+          Cadastre pontos com dicas e iscas. A previa aparece no mapa; os pontos exatos ficam protegidos
+          para quem desbloquear.
+        </Text>
+      </LinearGradient>
+
+      <View style={styles.mapCard}>
+        <MapView
+          key={mapKey}
+          style={styles.map}
+          initialRegion={mapRegion}
+          onPress={(event) => {
+            const { latitude, longitude } = event.nativeEvent.coordinate;
+            pickPointOnMap(latitude, longitude);
+          }}
+        >
+          {routes.map((route) => (
+            <Marker
+              key={route.id}
+              coordinate={{
+                latitude: route.previewLatitude,
+                longitude: route.previewLongitude
+              }}
+              pinColor={route.id === selectedRoute?.id ? colors.reef : colors.harbor}
+              title={route.title}
+              description={`${route.city}/${route.state} - ${formatPriceCents(route.priceCents)}`}
+              onPress={() => onSelectRoute(route.id)}
+            />
+          ))}
+
+          {visibleRoutePoints.map((point) => (
+            <Marker
+              key={point.id}
+              coordinate={{
+                latitude: point.latitude,
+                longitude: point.longitude
+              }}
+              pinColor={colors.warning}
+              title={point.title}
+              description={point.notes}
+            />
+          ))}
+
+          {visibleRoutePoints.length > 1 ? (
+            <Polyline
+              coordinates={visibleRoutePoints.map((point) => ({
+                latitude: point.latitude,
+                longitude: point.longitude
+              }))}
+              strokeColor={colors.reef}
+              strokeWidth={4}
+            />
+          ) : null}
+
+          {draftPointCoordinate ? (
+            <Marker
+              coordinate={draftPointCoordinate}
+              pinColor={colors.reef}
+              title="Novo ponto"
+              description="Revise os dados e toque em Adicionar ponto."
+            />
+          ) : null}
+        </MapView>
+
+        <View style={styles.mapLegend}>
+          <Text style={styles.mapHintText}>Toque no mapa para marcar seu próximo ponto de pesca.</Text>
+          <Text style={styles.mapLegendText}>Verde: ponto selecionado</Text>
+          <Text style={styles.mapLegendText}>Laranja: pontos liberados</Text>
+        </View>
+      </View>
+
+      <PrimaryButton
+        label={loading ? "Atualizando pontos..." : "Atualizar pontos"}
+        onPress={onRefresh}
+        disabled={loading}
+        variant="secondary"
+      />
+
+      {loading && routes.length === 0 ? (
+        <ActivityIndicator color={colors.reef} style={styles.loader} />
+      ) : null}
+
+      {routes.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateTitle}>Nenhum ponto publicado ainda</Text>
+          <Text style={styles.emptyStateText}>
+            Quando pescadores publicarem pontos, eles aparecem aqui com uma previa do local.
+          </Text>
+        </View>
+      ) : null}
+
+      {routes.map((route) => {
+        const selected = route.id === selectedRoute?.id;
+        const targetSpecies = route.targetSpecies.length ? route.targetSpecies.join(", ") : "Peixes variados";
+        const activeForSale = new Date(route.activeUntil).getTime() > Date.now();
+
+        return (
+          <Pressable
+            key={route.id}
+            accessibilityRole="button"
+            onPress={() => onSelectRoute(route.id)}
+            style={[styles.routeCard, selected && styles.selectedRouteCard]}
+          >
+            <View style={styles.routeHeader}>
+              <View style={styles.tournamentTitleWrap}>
+                <Text style={styles.routeTitle}>{route.title}</Text>
+                <Text style={styles.routeMeta}>
+                  {route.city}/{route.state} - {route.modality}
+                </Text>
+              </View>
+              <View style={[styles.routePriceBadge, route.priceCents <= 0 && styles.freeRouteBadge]}>
+                <Text style={styles.routePriceText}>{formatPriceCents(route.priceCents)}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.tournamentDescription}>{route.description}</Text>
+
+            <View style={styles.routeStats}>
+              <View style={styles.submissionDetail}>
+                <Text style={styles.submissionDetailLabel}>Alvo</Text>
+                <Text style={styles.submissionDetailValue}>{targetSpecies}</Text>
+              </View>
+              <View style={styles.submissionDetail}>
+                <Text style={styles.submissionDetailLabel}>Dificuldade</Text>
+                <Text style={styles.submissionDetailValue}>{getDifficultyLabel(route.difficulty)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.tournamentFooter}>
+              <View style={[styles.tournamentBadge, route.unlocked && styles.selectedTournamentBadge]}>
+                <Text
+                  style={[
+                    styles.tournamentBadgeText,
+                    route.unlocked && styles.selectedTournamentBadgeText
+                  ]}
+                >
+                  {route.unlocked ? `${route.points.length} pontos liberados` : "Pontos protegidos"}
+                </Text>
+              </View>
+              {route.owned ? (
+                <View style={styles.tournamentBadge}>
+                  <Text style={styles.tournamentBadgeText}>Seu ponto</Text>
+                </View>
+              ) : null}
+              <View style={[styles.tournamentBadge, !activeForSale && styles.expiredRouteBadge]}>
+                <Text style={[styles.tournamentBadgeText, !activeForSale && styles.expiredRouteBadgeText]}>
+                  {activeForSale ? `Ativa ate ${formatActiveUntil(route.activeUntil)}` : "Venda expirada"}
+                </Text>
+              </View>
+            </View>
+
+            {!route.unlocked && activeForSale ? (
+              <PrimaryButton
+                label={unlockingRouteId === route.id ? "Desbloqueando..." : "Desbloquear demo"}
+                onPress={() => onUnlockRoute(route.id)}
+                disabled={unlockingRouteId === route.id}
+                variant="secondary"
+              />
+            ) : null}
+          </Pressable>
+        );
+      })}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Criar ponto de pesca</Text>
+        <Text style={styles.bodyText}>
+          Para o MVP, o ponto ja nasce publicado. O pagamento real entra depois; por enquanto validamos preco,
+          interesse e qualidade dos pontos.
+        </Text>
+
+        <View style={styles.formSection}>
+          <TextField
+            label="Nome do ponto"
+            value={routeForm.title}
+            onChangeText={(value) => updateField("title", value)}
+            placeholder="Ex: Tucuna de manha no lago"
+          />
+          <TextField
+            label="Cidade"
+            value={routeForm.city}
+            onChangeText={(value) => updateField("city", value)}
+            placeholder="Cidade"
+          />
+          <TextField
+            label="Estado"
+            value={routeForm.state}
+            onChangeText={(value) => updateField("state", value.toUpperCase())}
+            placeholder="SP"
+            autoCapitalize="characters"
+          />
+          <TextField
+            label="Modalidade"
+            value={routeForm.modality}
+            onChangeText={(value) => updateField("modality", value)}
+            placeholder="Pesca embarcada"
+          />
+          <TextField
+            label="Peixes alvo"
+            value={routeForm.targetSpecies}
+            onChangeText={(value) => updateField("targetSpecies", value)}
+            placeholder="Tucunare, traira, robalo"
+          />
+          <TextField
+            label="Preco para desbloquear"
+            value={routeForm.price}
+            onChangeText={(value) => updateField("price", value)}
+            placeholder="29,90 ou deixe vazio para gratuita"
+            keyboardType="numeric"
+          />
+          <View style={styles.choiceGroup}>
+            <Text style={styles.label}>Tempo ativo para venda</Text>
+            <View style={styles.choiceRow}>
+              {["7", "15", "30", "60", "90"].map((days) => (
+                <Pressable
+                  key={days}
+                  accessibilityRole="button"
+                  onPress={() => updateField("saleDurationDays", days)}
+                  style={[
+                    styles.choiceChip,
+                    routeForm.saleDurationDays === days && styles.activeChoiceChip
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.choiceChipText,
+                      routeForm.saleDurationDays === days && styles.activeChoiceChipText
+                    ]}
+                  >
+                    {days} dias
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <TextField
+            label="Descricao"
+            value={routeForm.description}
+            onChangeText={(value) => updateField("description", value)}
+            placeholder="Explique o local, melhor horario, iscas e cuidados"
+          />
+
+          <View style={styles.choiceGroup}>
+            <Text style={styles.label}>Dificuldade</Text>
+            <View style={styles.choiceRow}>
+              {(["facil", "media", "dificil"] as FishingRouteDifficulty[]).map((difficulty) => (
+                <Pressable
+                  key={difficulty}
+                  accessibilityRole="button"
+                  onPress={() => updateField("difficulty", difficulty)}
+                  style={[
+                    styles.choiceChip,
+                    routeForm.difficulty === difficulty && styles.activeChoiceChip
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.choiceChipText,
+                      routeForm.difficulty === difficulty && styles.activeChoiceChipText
+                    ]}
+                  >
+                    {getDifficultyLabel(difficulty)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Localizacao do ponto</Text>
+        <Text style={styles.bodyText}>
+          Adicione os locais que compoem esse ponto. Toque no mapa acima, use sua localização atual ou cole latitude
+          e longitude manualmente.
+        </Text>
+
+        <View style={styles.formSection}>
+          <TextField
+            label="Nome do ponto"
+            value={routeForm.currentPointTitle}
+            onChangeText={(value) => updateField("currentPointTitle", value)}
+            placeholder={`Ponto ${routeForm.points.length + 1}`}
+          />
+          <TextField
+            label="Dicas do ponto"
+            value={routeForm.currentPointNotes}
+            onChangeText={(value) => updateField("currentPointNotes", value)}
+            placeholder="Isca, horario, estrutura, cuidado de acesso"
+          />
+          <View style={styles.coordinateGrid}>
+            <View style={styles.coordinateField}>
+              <TextField
+                label="Latitude"
+                value={routeForm.currentLatitude}
+                onChangeText={(value) => updateField("currentLatitude", value)}
+                placeholder="-22.734"
+                keyboardType="numeric"
+              />
+            </View>
+            <View style={styles.coordinateField}>
+              <TextField
+                label="Longitude"
+                value={routeForm.currentLongitude}
+                onChangeText={(value) => updateField("currentLongitude", value)}
+                placeholder="-47.647"
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.buttonStack}>
+            <PrimaryButton label="Usar minha localizacao" onPress={onUseCurrentLocation} variant="secondary" />
+            <PrimaryButton label="Adicionar ponto" onPress={onAddPoint} />
+          </View>
+        </View>
+
+        {routeForm.points.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>Nenhum ponto adicionado</Text>
+            <Text style={styles.emptyStateText}>
+              Adicione pelo menos uma localização para salvar o ponto.
+            </Text>
+          </View>
+        ) : null}
+
+        {routeForm.points.map((point, index) => (
+          <View key={point.id} style={styles.draftPointCard}>
+            <View style={styles.routeHeader}>
+              <View style={styles.tournamentTitleWrap}>
+                <Text style={styles.routeTitle}>
+                  {index + 1}. {point.title}
+                </Text>
+                <Text style={styles.routeMeta}>
+                  {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}
+                </Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => onRemovePoint(point.id)}>
+                <Text style={styles.removePointText}>Remover</Text>
+              </Pressable>
+            </View>
+            {point.notes ? <Text style={styles.tournamentDescription}>{point.notes}</Text> : null}
+          </View>
+        ))}
+      </View>
+
+      <PrimaryButton
+        label={saving ? "Salvando ponto..." : "Publicar ponto"}
+        onPress={onSaveRoute}
+        disabled={saving}
+      />
+    </ScrollView>
+  );
+}
+
 function ProfileScreen({
   email,
   demoMode,
@@ -917,6 +1607,12 @@ export default function App() {
   const [submissions, setSubmissions] = useState<CaptureSubmission[]>(seedRanking);
   const [mySubmissions, setMySubmissions] = useState<CaptureSubmission[]>([]);
   const [loadingMySubmissions, setLoadingMySubmissions] = useState(false);
+  const [fishingRoutes, setFishingRoutes] = useState<FishingRoute[]>(demoFishingRoutes);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(demoFishingRoutes[0]?.id ?? null);
+  const [routeForm, setRouteForm] = useState<FishingRouteForm>(createEmptyRouteForm());
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [savingRoute, setSavingRoute] = useState(false);
+  const [unlockingRouteId, setUnlockingRouteId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
@@ -976,6 +1672,17 @@ export default function App() {
     }
 
     void loadTournamentPanel();
+  }, [authenticated, demoMode, session?.user.id]);
+
+  useEffect(() => {
+    if (!authenticated) {
+      setFishingRoutes(demoFishingRoutes);
+      setSelectedRouteId(demoFishingRoutes[0]?.id ?? null);
+      setRouteForm(createEmptyRouteForm());
+      return;
+    }
+
+    void loadFishingRoutes();
   }, [authenticated, demoMode, session?.user.id]);
 
   useEffect(() => {
@@ -1081,6 +1788,326 @@ export default function App() {
         mapCatchSubmission(row, email || "Você")
       )
     );
+  }
+
+  async function loadFishingRoutes(showError = false) {
+    if (demoMode) {
+      setFishingRoutes(demoFishingRoutes);
+      setSelectedRouteId((current) => current ?? demoFishingRoutes[0]?.id ?? null);
+      return;
+    }
+
+    if (!supabase || !session?.user) {
+      setFishingRoutes(demoFishingRoutes);
+      setSelectedRouteId(demoFishingRoutes[0]?.id ?? null);
+      return;
+    }
+
+    setLoadingRoutes(true);
+
+    const { data: routesData, error: routesError } = await supabase
+      .from("fishing_routes")
+      .select(
+        "id, owner_id, title, description, city, state, modality, target_species, difficulty, price_cents, is_published, active_until, preview_lat, preview_lng, created_at, fishing_route_points(id, title, notes, latitude, longitude, sort_order)"
+      )
+      .order("created_at", { ascending: false });
+
+    if (routesError) {
+      setLoadingRoutes(false);
+      if (showError) {
+        Alert.alert(
+          "Nao foi possivel atualizar pontos",
+          "Confira se o SQL do mapa foi executado no Supabase."
+        );
+      }
+      return;
+    }
+
+    const routeIds = ((routesData ?? []) as FishingRouteRow[]).map((route) => route.id);
+    const { data: unlocksData } =
+      routeIds.length > 0
+        ? await supabase
+            .from("fishing_route_unlocks")
+            .select("route_id")
+            .eq("buyer_id", session.user.id)
+            .eq("status", "unlocked")
+            .in("route_id", routeIds)
+        : { data: [] };
+
+    setLoadingRoutes(false);
+
+    const unlockedRouteIds = new Set(
+      ((unlocksData ?? []) as FishingRouteUnlockRow[]).map((unlock) => unlock.route_id)
+    );
+    const nextRoutes = ((routesData ?? []) as FishingRouteRow[])
+      .map((row) => mapFishingRoute(row, session.user.id, unlockedRouteIds))
+      .filter(shouldShowRoute);
+
+    setFishingRoutes(nextRoutes);
+    setSelectedRouteId((current) => {
+      if (current && nextRoutes.some((route) => route.id === current)) {
+        return current;
+      }
+
+      return nextRoutes[0]?.id ?? null;
+    });
+  }
+
+  async function addCurrentLocationToRouteForm() {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert("Permissao necessaria", "Autorize a localizacao para capturar o ponto atual.");
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced
+      });
+
+      setRouteForm((current) => ({
+        ...current,
+        currentLatitude: location.coords.latitude.toFixed(6),
+        currentLongitude: location.coords.longitude.toFixed(6)
+      }));
+    } catch (error) {
+      Alert.alert(
+        "Nao foi possivel pegar sua localizacao",
+        error instanceof Error ? error.message : "Digite latitude e longitude manualmente."
+      );
+    }
+  }
+
+  function addPointToRouteForm() {
+    const latitude = normalizeDecimal(routeForm.currentLatitude);
+    const longitude = normalizeDecimal(routeForm.currentLongitude);
+
+    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+      Alert.alert("Coordenadas invalidas", "Informe latitude e longitude validas.");
+      return;
+    }
+
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+      Alert.alert("Coordenadas invalidas", "Latitude deve ficar entre -90 e 90, e longitude entre -180 e 180.");
+      return;
+    }
+
+    const nextPoint: FishingRouteDraftPoint = {
+      id: `draft-${Date.now()}`,
+      title: routeForm.currentPointTitle.trim() || `Ponto ${routeForm.points.length + 1}`,
+      notes: routeForm.currentPointNotes.trim(),
+      latitude,
+      longitude
+    };
+
+    setRouteForm((current) => ({
+      ...current,
+      points: [...current.points, nextPoint],
+      currentPointTitle: `Ponto ${current.points.length + 2}`,
+      currentPointNotes: "",
+      currentLatitude: "",
+      currentLongitude: ""
+    }));
+  }
+
+  function removePointFromRouteForm(pointId: string) {
+    setRouteForm((current) => ({
+      ...current,
+      points: current.points.filter((point) => point.id !== pointId)
+    }));
+  }
+
+  async function saveFishingRoute() {
+    const priceCents = parsePriceToCents(routeForm.price);
+    const saleDurationDays = parseSaleDurationDays(routeForm.saleDurationDays);
+
+    if (!routeForm.title.trim() || !routeForm.city.trim() || !routeForm.state.trim()) {
+      Alert.alert("Complete o ponto", "Informe nome, cidade e estado.");
+      return;
+    }
+
+    if (!routeForm.description.trim()) {
+      Alert.alert("Complete o ponto", "Explique por que esse ponto vale a pena.");
+      return;
+    }
+
+    if (Number.isNaN(priceCents)) {
+      Alert.alert("Preco invalido", "Use um valor como 29,90 ou deixe vazio para gratuita.");
+      return;
+    }
+
+    if (Number.isNaN(saleDurationDays)) {
+      Alert.alert("Prazo invalido", "Escolha por quantos dias o ponto ficara ativo para compra.");
+      return;
+    }
+
+    if (routeForm.points.length === 0) {
+      Alert.alert("Adicione a localizacao", "Inclua pelo menos uma localizacao para salvar o ponto.");
+      return;
+    }
+
+    const targetSpecies = routeForm.targetSpecies
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const firstPoint = routeForm.points[0];
+    const activeUntil = addDays(saleDurationDays);
+
+    setSavingRoute(true);
+
+    try {
+      if (!supabase || demoMode || !session?.user) {
+        const localRoute: FishingRoute = {
+          id: `local-route-${Date.now()}`,
+          ownerId: "local-user",
+          title: routeForm.title.trim(),
+          description: routeForm.description.trim(),
+          city: routeForm.city.trim(),
+          state: routeForm.state.trim().toUpperCase(),
+          modality: routeForm.modality.trim() || "Pesca livre",
+          targetSpecies,
+          difficulty: routeForm.difficulty,
+          priceCents,
+          isPublished: routeForm.isPublished,
+          activeUntil,
+          previewLatitude: firstPoint.latitude,
+          previewLongitude: firstPoint.longitude,
+          points: routeForm.points.map((point, index) => ({
+            id: point.id,
+            title: point.title,
+            notes: point.notes,
+            latitude: point.latitude,
+            longitude: point.longitude,
+            sortOrder: index + 1
+          })),
+          unlocked: true,
+          owned: true,
+          createdAt: new Date().toISOString()
+        };
+
+        setFishingRoutes((current) => [localRoute, ...current]);
+        setSelectedRouteId(localRoute.id);
+        setRouteForm(createEmptyRouteForm());
+        Alert.alert("Ponto criado", "Seu ponto foi salvo em modo demonstracao.");
+        return;
+      }
+
+      const { data: routeData, error: routeError } = await supabase
+        .from("fishing_routes")
+        .insert({
+          owner_id: session.user.id,
+          title: routeForm.title.trim(),
+          description: routeForm.description.trim(),
+          city: routeForm.city.trim(),
+          state: routeForm.state.trim().toUpperCase(),
+          modality: routeForm.modality.trim() || "Pesca livre",
+          target_species: targetSpecies,
+          difficulty: routeForm.difficulty,
+          price_cents: priceCents,
+          is_published: routeForm.isPublished,
+          active_until: activeUntil,
+          preview_lat: firstPoint.latitude,
+          preview_lng: firstPoint.longitude
+        })
+        .select("id")
+        .single();
+
+      if (routeError || !routeData) {
+        throw routeError ?? new Error("Nao foi possivel criar o ponto.");
+      }
+
+      const { error: pointsError } = await supabase.from("fishing_route_points").insert(
+        routeForm.points.map((point, index) => ({
+          route_id: routeData.id,
+          title: point.title,
+          notes: point.notes,
+          latitude: point.latitude,
+          longitude: point.longitude,
+          sort_order: index + 1
+        }))
+      );
+
+      if (pointsError) {
+        throw pointsError;
+      }
+
+      setRouteForm(createEmptyRouteForm());
+      Alert.alert("Ponto publicado", "Seu ponto ja aparece no mapa para outros pescadores.");
+      await loadFishingRoutes();
+      setSelectedRouteId(routeData.id);
+    } catch (error) {
+      Alert.alert(
+        "Nao foi possivel salvar",
+        error instanceof Error
+          ? error.message
+          : "Confira se o SQL do marketplace de pontos foi executado no Supabase."
+      );
+    } finally {
+      setSavingRoute(false);
+    }
+  }
+
+  async function unlockFishingRoute(routeId: string) {
+    const route = fishingRoutes.find((item) => item.id === routeId);
+
+    if (!route) {
+      Alert.alert("Ponto nao encontrado", "Atualize a lista e tente novamente.");
+      return;
+    }
+
+    if (route.unlocked) {
+      setSelectedRouteId(routeId);
+      return;
+    }
+
+    if (new Date(route.activeUntil).getTime() <= Date.now()) {
+      Alert.alert("Venda expirada", "Esse ponto nao esta mais disponivel para desbloqueio.");
+      return;
+    }
+
+    setUnlockingRouteId(routeId);
+
+    try {
+      if (supabase && session?.user && !demoMode) {
+        const { error } = await supabase.from("fishing_route_unlocks").insert({
+          route_id: routeId,
+          buyer_id: session.user.id,
+          price_cents: route.priceCents,
+          status: "unlocked"
+        });
+
+        if (error && error.code !== "23505") {
+          throw error;
+        }
+
+        await loadFishingRoutes();
+      } else {
+        setFishingRoutes((current) =>
+          current.map((item) =>
+            item.id === routeId
+              ? {
+                  ...item,
+                  unlocked: true
+                }
+              : item
+          )
+        );
+      }
+
+      setSelectedRouteId(routeId);
+      Alert.alert(
+        "Ponto desbloqueado",
+        "Desbloqueio demo feito. Depois conectamos isso ao Mercado Pago para cobrar de verdade."
+      );
+    } catch (error) {
+      Alert.alert(
+        "Nao foi possivel desbloquear",
+        error instanceof Error ? error.message : "Tente novamente."
+      );
+    } finally {
+      setUnlockingRouteId(null);
+    }
   }
 
   async function joinTournament(tournamentId: string) {
@@ -1285,11 +2312,17 @@ export default function App() {
         <Text style={styles.headerBadge}>{demoMode ? "Demo" : "Beta"}</Text>
       </View>
 
-      <View style={styles.tabs}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.tabsScroll}
+        contentContainerStyle={styles.tabs}
+      >
         {[
           ["campeonato", "Torneio"],
           ["captura", "Captura"],
           ["envios", "Envios"],
+          ["mapa", "Mapa"],
           ["ranking", "Ranking"],
           ["perfil", "Perfil"]
         ].map(([key, label]) => (
@@ -1313,7 +2346,7 @@ export default function App() {
             </Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       {screen === "campeonato" ? (
         <TournamentScreen
@@ -1343,6 +2376,24 @@ export default function App() {
           submissions={mySubmissions}
           loading={loadingMySubmissions}
           onRefresh={() => void loadMySubmissions(true)}
+        />
+      ) : null}
+      {screen === "mapa" ? (
+        <FishingRoutesScreen
+          routes={fishingRoutes}
+          selectedRouteId={selectedRouteId}
+          routeForm={routeForm}
+          loading={loadingRoutes}
+          saving={savingRoute}
+          unlockingRouteId={unlockingRouteId}
+          onRefresh={() => void loadFishingRoutes(true)}
+          onSelectRoute={setSelectedRouteId}
+          onUnlockRoute={unlockFishingRoute}
+          onRouteFormChange={setRouteForm}
+          onUseCurrentLocation={() => void addCurrentLocationToRouteForm()}
+          onAddPoint={addPointToRouteForm}
+          onRemovePoint={removePointFromRouteForm}
+          onSaveRoute={() => void saveFishingRoute()}
         />
       ) : null}
       {screen === "ranking" ? <RankingScreen submissions={approvedSubmissions} /> : null}
@@ -1487,21 +2538,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5
   },
-  tabs: {
+  tabsScroll: {
     backgroundColor: colors.white,
     borderBottomColor: colors.border,
     borderBottomWidth: 1,
+    maxHeight: 60
+  },
+  tabs: {
     flexDirection: "row",
-    gap: 4,
+    gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 10
   },
   tab: {
     alignItems: "center",
     borderRadius: 999,
-    flex: 1,
+    minWidth: 76,
     minHeight: 38,
-    justifyContent: "center"
+    justifyContent: "center",
+    paddingHorizontal: 12
   },
   activeTab: {
     backgroundColor: colors.midnight
@@ -1670,6 +2725,149 @@ const styles = StyleSheet.create({
   },
   selectedTournamentBadgeText: {
     color: colors.midnight
+  },
+  mapCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: spacing.radius,
+    borderWidth: 1,
+    overflow: "hidden"
+  },
+  map: {
+    height: 300,
+    width: "100%"
+  },
+  mapLegend: {
+    backgroundColor: colors.white,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    padding: 12
+  },
+  mapHintText: {
+    color: colors.midnight,
+    flexBasis: "100%",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  mapLegendText: {
+    color: colors.slate,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  routeCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.border,
+    borderRadius: spacing.radius,
+    borderWidth: 1,
+    gap: 12,
+    padding: spacing.card
+  },
+  selectedRouteCard: {
+    borderColor: colors.reef,
+    borderWidth: 2
+  },
+  routeHeader: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    justifyContent: "space-between"
+  },
+  routeTitle: {
+    color: colors.midnight,
+    fontSize: 17,
+    fontWeight: "900",
+    lineHeight: 23
+  },
+  routeMeta: {
+    color: colors.slate,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 18,
+    marginTop: 4
+  },
+  routePriceBadge: {
+    backgroundColor: "#e8fbf4",
+    borderColor: "#6eddb7",
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  freeRouteBadge: {
+    backgroundColor: colors.foam,
+    borderColor: colors.border
+  },
+  expiredRouteBadge: {
+    backgroundColor: "#fff0f0",
+    borderColor: "#f0a0a0"
+  },
+  expiredRouteBadgeText: {
+    color: colors.danger
+  },
+  routePriceText: {
+    color: colors.midnight,
+    fontSize: 11,
+    fontWeight: "900"
+  },
+  routeStats: {
+    flexDirection: "row",
+    gap: 10
+  },
+  formSection: {
+    gap: 12,
+    marginTop: 14
+  },
+  choiceGroup: {
+    gap: 8
+  },
+  choiceRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  choiceChip: {
+    backgroundColor: colors.foam,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  activeChoiceChip: {
+    backgroundColor: colors.midnight,
+    borderColor: colors.midnight
+  },
+  choiceChipText: {
+    color: colors.midnight,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  activeChoiceChipText: {
+    color: colors.white
+  },
+  coordinateGrid: {
+    flexDirection: "row",
+    gap: 10
+  },
+  coordinateField: {
+    flex: 1
+  },
+  draftPointCard: {
+    backgroundColor: colors.foam,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 12,
+    padding: 12
+  },
+  removePointText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: "900"
   },
   joinBadge: {
     backgroundColor: "#fff8e1",

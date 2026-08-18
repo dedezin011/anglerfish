@@ -13,6 +13,10 @@ App mobile MVP do AnglerFish, criado com Expo, React Native, TypeScript e Supaba
 - Ranking inicial do desafio
 - Perfil simples
 - Upload preparado para o bucket privado `catch-media`
+- Aba `Mapa` com marketplace MVP de pontos de pesca
+- Cadastro de ponto com localizacao, preco sugerido, tempo ativo, modalidade, cidade e especies alvo
+- Marcacao manual de pontos tocando direto no mapa ou usando localizacao atual
+- Desbloqueio demo de pontos pagos para validar interesse antes de integrar pagamento real
 
 ## Variáveis de ambiente
 
@@ -31,6 +35,7 @@ No Supabase SQL Editor, execute:
 
 ```text
 supabase/migrations/20260625_mobile_mvp.sql
+supabase/migrations/20260802_fishing_routes_marketplace.sql
 ```
 
 Esse SQL cria:
@@ -42,6 +47,16 @@ Esse SQL cria:
 - bucket privado `catch-media`
 - políticas de RLS para usuários autenticados
 - torneio seed `1º Desafio Beta AnglerFish`
+
+O SQL de pontos cria:
+
+- `fishing_routes`
+- `fishing_route_points`
+- `fishing_route_unlocks`
+- politicas de RLS para proteger os pontos exatos antes do desbloqueio
+- prazo de venda em `active_until`, para tirar pontos expirados da vitrine
+
+No MVP, `fishing_route_unlocks` registra o desbloqueio sem cobranca real. A integracao com Mercado Pago ou outro provedor deve vir depois por uma API segura no servidor.
 
 ## Rodar localmente
 
@@ -70,4 +85,6 @@ npm run web
 - Sincronizar ranking real
 - Adicionar painel admin para aprovar/reprovar capturas
 - Adicionar denúncia, bloqueio e termos de uso antes de publicação em lojas
+- Integrar pagamento real para desbloqueio de pontos
+- Adicionar avaliacoes e denuncias nos pontos
 - Preparar EAS Build para Android e iOS

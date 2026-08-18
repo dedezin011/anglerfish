@@ -54,11 +54,12 @@ const surveyQuestions = [
   },
   {
     name: "tipo_premio",
-    label: "Qual tipo de premiação mais te interessa?",
+    label: "Qual tipo de premiação ou benefício mais te interessa?",
     multiple: true,
     options: [
       "PIX",
       "Produtos de pesca",
+      "Pontos de pesca",
       "Criptomoedas",
       "NFTs colecionáveis",
       "Experiências de pesca"
@@ -177,7 +178,7 @@ function SurveyForm({
             maxLength={500}
             rows={4}
             className="min-h-28 resize-y rounded-md border border-slate-200 bg-foam px-4 py-3 text-base font-normal text-midnight outline-none transition placeholder:text-slate-400 focus:border-reef focus:ring-4 focus:ring-reef/15"
-            placeholder="Ex: campeonatos por espécie, ranking por cidade, premiação em produtos, integração com pesqueiros..."
+            placeholder="Ex: campeonatos por espécie, ranking por cidade, venda de pontos, mapa de pesca, integração com pesqueiros..."
           />
           <span className="text-xs font-normal leading-5 text-slate-500">
             Se tiver uma ideia, manda sem filtro. Isso ajuda a priorizar o que
@@ -288,7 +289,7 @@ export function WaitlistForm() {
             </button>
             <p className="text-xs leading-5 text-slate-500">
               A resposta anônima não entra na lista de espera, mas ajuda a
-              validar campeonatos, recompensas e preços.
+              validar campeonatos, pontos de pesca, recompensas e preços.
             </p>
           </div>
         </div>

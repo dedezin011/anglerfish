@@ -5,21 +5,24 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "AnglerFish | Campeonatos Digitais de Pesca Esportiva",
+  title: "AnglerFish | Campeonatos e Pontos de Pesca Esportiva",
   description:
-    "Ecossistema digital para pescadores esportivos competirem, registrarem capturas, subirem no ranking e conquistarem recompensas exclusivas.",
+    "Ecossistema digital para pescadores esportivos competirem, registrarem capturas, venderem pontos de pesca, subirem no ranking e conquistarem recompensas exclusivas.",
   keywords: [
     "pesca esportiva",
     "campeonato de pesca",
     "ranking de pescadores",
     "marketplace de pesca",
+    "pontos de pesca",
+    "mapa de pesca",
+    "locais de pesca",
     "NFT pesca",
     "AnglerFish"
   ],
   openGraph: {
-    title: "AnglerFish | Campeonatos Digitais de Pesca Esportiva",
+    title: "AnglerFish | Campeonatos e Pontos de Pesca Esportiva",
     description:
-      "Compita, registre capturas, suba no ranking e conquiste recompensas exclusivas.",
+      "Compita, registre capturas, descubra pontos de pesca e conquiste recompensas exclusivas.",
     url: siteUrl,
     siteName: "AnglerFish",
     images: [
@@ -35,9 +38,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AnglerFish | Campeonatos Digitais de Pesca Esportiva",
+    title: "AnglerFish | Campeonatos e Pontos de Pesca Esportiva",
     description:
-      "O primeiro ecossistema digital para campeonatos de pesca."
+      "O primeiro ecossistema digital para campeonatos, pontos e recompensas de pesca."
   },
   alternates: {
     canonical: siteUrl

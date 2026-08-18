@@ -7,14 +7,18 @@ import {
   ChevronRight,
   CircleDollarSign,
   ClipboardList,
+  Clock,
+  Compass,
   Gift,
   Globe2,
   History,
   Instagram,
+  LockKeyhole,
   Mail,
   MapPin,
   Medal,
   MessageCircle,
+  Route,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
@@ -54,8 +58,31 @@ const benefits = [
   { title: "Perfil do pescador", icon: UserRound },
   { title: "Histórico de capturas", icon: History },
   { title: "Campeonatos online", icon: Globe2 },
+  { title: "Mapa com pontos de pesca", icon: MapPin },
+  { title: "Venda de pontos e dicas", icon: MapPin },
   { title: "Recompensas exclusivas", icon: Gift },
   { title: "NFTs colecionáveis", icon: BadgeCheck }
+];
+
+const routeFeatures = [
+  {
+    title: "Cadastre seus pontos",
+    description:
+      "Cadastre locais, dicas de acesso, melhores horários, iscas e espécies alvo.",
+    icon: Route
+  },
+  {
+    title: "Defina valor e prazo",
+    description:
+      "Cada ponto pode ter um preço sugerido e ficar ativo por 7, 15, 30, 60 ou 90 dias.",
+    icon: Clock
+  },
+  {
+    title: "Proteja o ponto exato",
+    description:
+      "Quem ainda não desbloqueou vê apenas uma prévia; os pontos completos ficam protegidos.",
+    icon: LockKeyhole
+  }
 ];
 
 const roadmap = [
@@ -72,7 +99,7 @@ const roadmap = [
   {
     phase: "Fase 3",
     title: "Marketplace",
-    description: "Troca de pontos por equipamentos, iscas, guias e experiências."
+    description: "Pontos de pesca, produtos, iscas, guias, serviços e experiências."
   },
   {
     phase: "Fase 4",
@@ -85,7 +112,7 @@ const faqs = [
   {
     question: "O que é o AnglerFish?",
     answer:
-      "É um ecossistema digital para campeonatos de pesca esportiva, com perfis, ranking, registro de capturas, recompensas, colecionáveis digitais e marketplace."
+      "É um ecossistema digital para campeonatos de pesca esportiva, com perfis, ranking, registro de capturas, recompensas, pontos de pesca, colecionáveis digitais e marketplace."
   },
   {
     question: "Preciso ser pescador profissional para participar?",
@@ -110,7 +137,12 @@ const faqs = [
   {
     question: "O que poderei trocar no marketplace?",
     answer:
-      "A visão do marketplace inclui produtos de pesca, equipamentos, iscas, experiências, serviços de guias e vantagens de parceiros."
+      "A visão do marketplace inclui produtos de pesca, equipamentos, iscas, experiências, serviços de guias, vantagens de parceiros e pontos criados pela comunidade."
+  },
+  {
+    question: "Como funcionará a venda de pontos de pesca?",
+    answer:
+      "O pescador poderá cadastrar pontos, dicas e estratégias, definir um valor e escolher por quanto tempo o ponto ficará ativo. Quem tiver interesse vê uma prévia e desbloqueia os detalhes."
   },
   {
     question: "Os NFTs serão obrigatórios?",
@@ -131,7 +163,7 @@ export default function Home() {
     name: "AnglerFish",
     url: siteUrl,
     description:
-      "Ecossistema digital para campeonatos de pesca esportiva com ranking, recompensas, NFTs colecionáveis e marketplace.",
+      "Ecossistema digital para campeonatos de pesca esportiva com ranking, recompensas, marketplace e pontos de pesca criados pela comunidade.",
     sameAs: ["https://www.instagram.com/anglerfishbr/"]
   };
 
@@ -163,6 +195,9 @@ export default function Home() {
             <a className="transition hover:text-white" href="#beneficios">
               Benefícios
             </a>
+            <a className="transition hover:text-white" href="#pontos">
+              Pontos
+            </a>
             <a className="transition hover:text-white" href="#roadmap">
               Roadmap
             </a>
@@ -181,14 +216,14 @@ export default function Home() {
           <div className="max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white backdrop-blur">
               <Medal className="h-4 w-4" aria-hidden="true" />
-              Campeonatos digitais com recompensas reais
+              Campeonatos, pontos e recompensas reais
             </div>
             <h1 className="max-w-4xl text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-              O primeiro ecossistema digital para campeonatos de pesca
+              O primeiro ecossistema digital para campeonatos e pontos de pesca
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/90 sm:text-xl">
-              Compita, registre capturas, suba no ranking e conquiste
-              recompensas exclusivas.
+              Compita, registre capturas, suba no ranking, descubra pontos e
+              venda seus pontos de pesca com segurança.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
@@ -213,12 +248,12 @@ export default function Home() {
               <p className="mt-1 text-sm text-white/75">fases de lançamento</p>
             </div>
             <div>
-              <p className="text-3xl font-bold">6</p>
+              <p className="text-3xl font-bold">8</p>
               <p className="mt-1 text-sm text-white/75">frentes de benefício</p>
             </div>
             <div>
-              <p className="text-3xl font-bold">100%</p>
-              <p className="mt-1 text-sm text-white/75">focado em pesca esportiva</p>
+              <p className="text-3xl font-bold">Pontos</p>
+              <p className="mt-1 text-sm text-white/75">para gerar renda</p>
             </div>
           </div>
         </div>
@@ -332,6 +367,103 @@ export default function Home() {
                 </article>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      <section id="pontos" className="bg-foam py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-5 sm:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
+          <div>
+            <p className="text-sm font-bold uppercase text-reef">
+              Mapa e pontos de pesca
+            </p>
+            <h2 className="mt-3 text-3xl font-bold sm:text-4xl">
+              Pescadores poderão transformar bons pontos de pesca em renda.
+            </h2>
+            <p className="mt-5 leading-7 text-slate-600">
+              O AnglerFish está preparando um marketplace onde pescadores e
+              guias poderão cadastrar pontos com dicas e estratégias. A
+              comunidade vê uma prévia no mapa e desbloqueia os detalhes quando
+              tiver interesse.
+            </p>
+            <div className="mt-8 grid gap-4">
+              {routeFeatures.map((feature) => {
+                const Icon = feature.icon;
+
+                return (
+                  <article
+                    key={feature.title}
+                    className="flex gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm"
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-reef/10 text-reef">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-bold">{feature.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                        {feature.description}
+                      </p>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="relative min-h-[430px] overflow-hidden rounded-md bg-midnight text-white">
+              <div className="absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_25%_25%,rgba(8,201,139,0.35),transparent_28%),radial-gradient(circle_at_80%_72%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(135deg,#06243f,#0b3a5c)]" />
+              <div className="absolute inset-0 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:42px_42px]" />
+
+              <div className="relative flex min-h-[430px] flex-col justify-between p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-emerald-300">
+                      Ponto em destaque
+                    </p>
+                    <h3 className="mt-2 text-2xl font-bold">
+                      Manhã de tucunaré no lago
+                    </h3>
+                  </div>
+                  <span className="rounded-md bg-reef px-3 py-2 text-sm font-bold text-midnight">
+                    R$ 29,90
+                  </span>
+                </div>
+
+                <div className="relative mx-auto my-8 h-48 w-full max-w-md">
+                  <div className="absolute left-[12%] top-[48%] h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_0_8px_rgba(8,201,139,0.18)]" />
+                  <div className="absolute left-[42%] top-[30%] h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_0_8px_rgba(8,201,139,0.18)]" />
+                  <div className="absolute left-[72%] top-[58%] h-3 w-3 rounded-full bg-emerald-300 shadow-[0_0_0_8px_rgba(8,201,139,0.18)]" />
+                  <div className="absolute left-[16%] top-[52%] h-1 w-[31%] -rotate-[23deg] rounded-full bg-emerald-300/80" />
+                  <div className="absolute left-[45%] top-[36%] h-1 w-[31%] rotate-[21deg] rounded-full bg-emerald-300/80" />
+                  <Compass
+                    className="absolute bottom-2 right-3 h-16 w-16 text-white/30"
+                    aria-hidden="true"
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-md border border-white/15 bg-white/10 p-4">
+                    <p className="text-xs font-bold uppercase text-white/55">
+                      Ativa por
+                    </p>
+                    <p className="mt-1 text-xl font-bold">30 dias</p>
+                  </div>
+                  <div className="rounded-md border border-white/15 bg-white/10 p-4">
+                    <p className="text-xs font-bold uppercase text-white/55">
+                      Pontos
+                    </p>
+                    <p className="mt-1 text-xl font-bold">3 locais</p>
+                  </div>
+                  <div className="rounded-md border border-white/15 bg-white/10 p-4">
+                    <p className="text-xs font-bold uppercase text-white/55">
+                      Acesso
+                    </p>
+                    <p className="mt-1 text-xl font-bold">Protegido</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

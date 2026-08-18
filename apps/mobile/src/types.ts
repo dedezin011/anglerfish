@@ -38,3 +38,61 @@ export type CaptureForm = {
   photo: ImagePickerAsset | null;
   video: ImagePickerAsset | null;
 };
+
+export type FishingRouteDifficulty = "facil" | "media" | "dificil";
+
+export type FishingRoutePoint = {
+  id: string;
+  title: string;
+  notes: string;
+  latitude: number;
+  longitude: number;
+  sortOrder: number;
+};
+
+export type FishingRoute = {
+  id: string;
+  ownerId: string;
+  title: string;
+  description: string;
+  city: string;
+  state: string;
+  modality: string;
+  targetSpecies: string[];
+  difficulty: FishingRouteDifficulty;
+  priceCents: number;
+  isPublished: boolean;
+  activeUntil: string;
+  previewLatitude: number;
+  previewLongitude: number;
+  points: FishingRoutePoint[];
+  unlocked: boolean;
+  owned: boolean;
+  createdAt: string;
+};
+
+export type FishingRouteDraftPoint = {
+  id: string;
+  title: string;
+  notes: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type FishingRouteForm = {
+  title: string;
+  description: string;
+  city: string;
+  state: string;
+  modality: string;
+  targetSpecies: string;
+  difficulty: FishingRouteDifficulty;
+  price: string;
+  saleDurationDays: string;
+  isPublished: boolean;
+  currentPointTitle: string;
+  currentPointNotes: string;
+  currentLatitude: string;
+  currentLongitude: string;
+  points: FishingRouteDraftPoint[];
+};
